@@ -8,6 +8,11 @@ class TimeManagementApp {
         this.selectedTask = null;
         this.isDragging = false;
         
+        // Calendar grid properties
+        this.timeSlots = [];
+        this.zoomLevel = 1; // 1 = hourly, 2 = 30min, 3 = 20min, 4 = 10min, 5 = 5min
+        this.hoveredTimeSlot = null;
+        
         this.initializeElements();
         this.bindEvents();
         this.updateDateDisplay();
@@ -150,18 +155,251 @@ class TimeManagementApp {
             task.date === currentDateStr && task.type === 'scheduled'
         );
         
-        // Sort by time
-        scheduledTasks.sort((a, b) => {
-            if (!a.time) return 1;
-            if (!b.time) return -1;
-            return a.time.localeCompare(b.time);
-        });
-        
+        // Clear the grid
         this.scheduledEvents.innerHTML = '';
+        this.timeSlots = [];
+        
+        // Create time grid based on zoom level
+        this.createTimeGrid();
+        
+        // Place tasks in appropriate time slots
         scheduledTasks.forEach(task => {
-            const taskElement = this.createTaskElement(task);
-            this.scheduledEvents.appendChild(taskElement);
+            this.placeTaskInGrid(task);
         });
+    }
+
+    createTimeGrid() {
+        const intervals = this.getTimeIntervals();
+        
+        intervals.forEach(interval => {
+            const timeSlot = document.createElement('div');
+            timeSlot.className = 'time-slot';
+            timeSlot.dataset.time = interval.time;
+            
+            // Time label
+            const timeLabel = document.createElement('div');
+            timeLabel.className = 'time-label';
+            timeLabel.textContent = interval.display;
+            timeSlot.appendChild(timeLabel);
+            
+            // Task container
+            const taskContainer = document.createElement('div');
+            taskContainer.className = 'task-container';
+            timeSlot.appendChild(taskContainer);
+            
+            // Add hover events for zoom functionality
+            timeSlot.addEventListener('mouseenter', (e) => {
+                if (this.selectedTask && this.isDragging) {
+                    this.handleTimeSlotHover(timeSlot, interval);
+                }
+            });
+            
+            timeSlot.addEventListener('mouseleave', () => {
+                if (this.selectedTask && this.isDragging) {
+                    this.handleTimeSlotLeave(timeSlot);
+                }
+            });
+            
+            // Click to place task
+            timeSlot.addEventListener('click', (e) => {
+                if (this.selectedTask && this.isDragging) {
+                    this.dropTaskInTimeSlot(timeSlot, interval);
+                }
+            });
+            
+            this.scheduledEvents.appendChild(timeSlot);
+            this.timeSlots.push({ element: timeSlot, interval });
+        });
+    }
+
+    getTimeIntervals() {
+        const intervals = [];
+        
+        switch (this.zoomLevel) {
+            case 1: // Hourly
+                for (let hour = 0; hour < 24; hour++) {
+                    const time = `${hour.toString().padStart(2, '0')}:00`;
+                    intervals.push({
+                        time,
+                        display: this.formatTimeDisplay(time),
+                        duration: 60
+                    });
+                }
+                break;
+            case 2: // 30 minutes
+                for (let hour = 0; hour < 24; hour++) {
+                    for (let min = 0; min < 60; min += 30) {
+                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                        intervals.push({
+                            time,
+                            display: this.formatTimeDisplay(time),
+                            duration: 30
+                        });
+                    }
+                }
+                break;
+            case 3: // 20 minutes
+                for (let hour = 0; hour < 24; hour++) {
+                    for (let min = 0; min < 60; min += 20) {
+                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                        intervals.push({
+                            time,
+                            display: this.formatTimeDisplay(time),
+                            duration: 20
+                        });
+                    }
+                }
+                break;
+            case 4: // 10 minutes
+                for (let hour = 0; hour < 24; hour++) {
+                    for (let min = 0; min < 60; min += 10) {
+                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                        intervals.push({
+                            time,
+                            display: this.formatTimeDisplay(time),
+                            duration: 10
+                        });
+                    }
+                }
+                break;
+            case 5: // 5 minutes
+                for (let hour = 0; hour < 24; hour++) {
+                    for (let min = 0; min < 60; min += 5) {
+                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                        intervals.push({
+                            time,
+                            display: this.formatTimeDisplay(time),
+                            duration: 5
+                        });
+                    }
+                }
+                break;
+            default:
+                // Default to hourly
+                this.zoomLevel = 1;
+                return this.getTimeIntervals();
+        }
+        
+        return intervals;
+    }
+
+    formatTimeDisplay(time) {
+        const [hours, minutes] = time.split(':');
+        const hour12 = parseInt(hours) % 12 || 12;
+        const ampm = parseInt(hours) < 12 ? 'AM' : 'PM';
+        
+        if (minutes === '00') {
+            return `${hour12} ${ampm}`;
+        } else {
+            return `${hour12}:${minutes} ${ampm}`;
+        }
+    }
+
+    placeTaskInGrid(task) {
+        if (!task.time) return;
+        
+        // Find the appropriate time slot
+        const taskTime = task.time;
+        const timeSlot = this.findTimeSlotForTask(taskTime);
+        
+        if (timeSlot) {
+            const taskElement = this.createTaskElement(task);
+            taskElement.classList.add('grid-task');
+            const taskContainer = timeSlot.element.querySelector('.task-container');
+            taskContainer.appendChild(taskElement);
+        }
+    }
+
+    findTimeSlotForTask(taskTime) {
+        // Find the closest time slot that can contain this task
+        for (let slot of this.timeSlots) {
+            if (this.timeIsInSlot(taskTime, slot.interval)) {
+                return slot;
+            }
+        }
+        
+        // If no exact match, find closest earlier slot
+        let closestSlot = null;
+        let smallestDiff = Infinity;
+        
+        for (let slot of this.timeSlots) {
+            const slotMinutes = this.timeToMinutes(slot.interval.time);
+            const taskMinutes = this.timeToMinutes(taskTime);
+            const diff = taskMinutes - slotMinutes;
+            
+            if (diff >= 0 && diff < smallestDiff) {
+                smallestDiff = diff;
+                closestSlot = slot;
+            }
+        }
+        
+        return closestSlot;
+    }
+
+    timeIsInSlot(taskTime, interval) {
+        const taskMinutes = this.timeToMinutes(taskTime);
+        const slotMinutes = this.timeToMinutes(interval.time);
+        
+        return taskMinutes >= slotMinutes && taskMinutes < slotMinutes + interval.duration;
+    }
+
+    timeToMinutes(time) {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    handleTimeSlotHover(timeSlot, interval) {
+        this.hoveredTimeSlot = timeSlot;
+        
+        // Add hover class
+        timeSlot.classList.add('time-slot-hover');
+        
+        // Implement zoom functionality - increase zoom level gradually
+        if (this.zoomLevel < 5) {
+            this.startZoomTransition(timeSlot, interval);
+        }
+    }
+
+    handleTimeSlotLeave(timeSlot) {
+        timeSlot.classList.remove('time-slot-hover');
+        
+        // Reset zoom after a delay if not hovering over another slot
+        setTimeout(() => {
+            if (this.hoveredTimeSlot !== timeSlot) {
+                this.resetZoom();
+            }
+        }, 300);
+    }
+
+    startZoomTransition(timeSlot, interval) {
+        // Gradually increase zoom level
+        setTimeout(() => {
+            if (this.hoveredTimeSlot === timeSlot && this.zoomLevel < 5) {
+                this.zoomLevel++;
+                this.renderScheduledEvents();
+            }
+        }, 500); // 500ms delay before zooming
+    }
+
+    resetZoom() {
+        if (this.zoomLevel > 1) {
+            this.zoomLevel = 1;
+            this.renderScheduledEvents();
+        }
+    }
+
+    dropTaskInTimeSlot(timeSlot, interval) {
+        if (!this.selectedTask) return;
+        
+        // Snap to the time slot
+        this.selectedTask.time = interval.time;
+        this.selectedTask.type = 'scheduled';
+        this.selectedTask.date = this.formatDate(this.currentDate);
+        
+        this.saveTasks();
+        this.deselectTask();
+        this.resetZoom();
+        this.renderTasks();
     }
 
     createTaskElement(task) {
@@ -293,27 +531,37 @@ class TimeManagementApp {
     }
 
     setupDropZones() {
-        [this.dailyTasks, this.scheduledEvents].forEach(zone => {
-            zone.addEventListener('mouseover', (e) => {
-                if (this.selectedTask && this.isDragging) {
-                    zone.classList.add('drag-over');
-                }
-            });
+        // Daily tasks drop zone
+        this.dailyTasks.addEventListener('mouseover', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                this.dailyTasks.classList.add('drag-over');
+            }
+        });
 
-            zone.addEventListener('mouseleave', () => {
-                zone.classList.remove('drag-over');
-            });
+        this.dailyTasks.addEventListener('mouseleave', () => {
+            this.dailyTasks.classList.remove('drag-over');
+        });
 
-            zone.addEventListener('click', (e) => {
-                if (this.selectedTask && this.isDragging) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    zone.classList.remove('drag-over');
-                    
-                    this.moveTaskToDate(this.selectedTask, zone);
-                    this.deselectTask();
-                }
-            });
+        this.dailyTasks.addEventListener('click', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.dailyTasks.classList.remove('drag-over');
+                
+                this.moveTaskToDate(this.selectedTask, this.dailyTasks);
+                this.deselectTask();
+            }
+        });
+
+        // Scheduled events grid drop zone (handled by individual time slots)
+        this.scheduledEvents.addEventListener('mouseover', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                this.scheduledEvents.classList.add('drag-over');
+            }
+        });
+
+        this.scheduledEvents.addEventListener('mouseleave', () => {
+            this.scheduledEvents.classList.remove('drag-over');
         });
     }
 
@@ -329,7 +577,7 @@ class TimeManagementApp {
                 // Keep the time and make it scheduled
                 task.type = 'scheduled';
             }
-        } else if (zone === this.scheduledEvents) {
+        } else if (zone === this.scheduledEvents || zone.classList?.contains('scheduled-events-grid')) {
             if (!task.time) {
                 // Set default time if moving to scheduled events
                 task.time = '09:00';
