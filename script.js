@@ -5,6 +5,8 @@ class TimeManagementApp {
         this.currentDate = new Date();
         this.tasks = this.loadTasks();
         this.draggedTask = null;
+        this.selectedTask = null;
+        this.isDragging = false;
         
         this.initializeElements();
         this.bindEvents();
@@ -45,6 +47,20 @@ class TimeManagementApp {
 
         // Drop zones
         this.setupDropZones();
+        
+        // Mouse tracking for drag behavior
+        document.addEventListener('mousemove', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                this.updateDragPreview(e);
+            }
+        });
+        
+        // Global click to deselect
+        document.addEventListener('click', (e) => {
+            if (this.selectedTask && !e.target.closest('.task-item')) {
+                this.deselectTask();
+            }
+        });
     }
 
     addQuickTask() {
@@ -151,7 +167,6 @@ class TimeManagementApp {
     createTaskElement(task) {
         const taskElement = document.createElement('div');
         taskElement.className = 'task-item';
-        taskElement.draggable = true;
         taskElement.dataset.taskId = task.id;
 
         const taskContent = document.createElement('div');
@@ -163,15 +178,56 @@ class TimeManagementApp {
 
         // Add time button for daily tasks
         if (task.type === 'daily' || task.type === 'scheduled') {
+            const timeContainer = document.createElement('div');
+            timeContainer.className = 'time-container';
+            
+            const timeInput = document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.className = 'time-input';
+            timeInput.value = task.time || '09:00';
+            timeInput.style.display = task.time ? 'inline-block' : 'none';
+            
             const timeBtn = document.createElement('button');
             timeBtn.className = 'time-btn';
-            timeBtn.textContent = task.time ? task.time : '⏰';
+            timeBtn.textContent = '⏰';
             timeBtn.title = 'Set time';
+            
             timeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.setTaskTime(task);
+                if (timeInput.style.display === 'none') {
+                    timeInput.style.display = 'inline-block';
+                    timeInput.focus();
+                } else {
+                    timeInput.style.display = 'none';
+                }
             });
-            taskActions.appendChild(timeBtn);
+            
+            timeInput.addEventListener('change', (e) => {
+                const time = e.target.value;
+                if (time) {
+                    task.time = time;
+                    if (task.type === 'daily') {
+                        task.type = 'scheduled';
+                    }
+                } else {
+                    task.time = null;
+                    if (task.type === 'scheduled') {
+                        task.type = 'daily';
+                    }
+                }
+                this.saveTasks();
+                this.renderTasks();
+            });
+            
+            timeInput.addEventListener('blur', () => {
+                if (!task.time) {
+                    timeInput.style.display = 'none';
+                }
+            });
+            
+            timeContainer.appendChild(timeInput);
+            timeContainer.appendChild(timeBtn);
+            taskActions.appendChild(timeContainer);
 
             if (task.time) {
                 const timeDisplay = document.createElement('span');
@@ -195,38 +251,25 @@ class TimeManagementApp {
         taskElement.appendChild(taskContent);
         taskElement.appendChild(taskActions);
 
-        // Drag events
-        taskElement.addEventListener('dragstart', (e) => {
-            this.draggedTask = task;
-            taskElement.classList.add('dragging');
-        });
-
-        taskElement.addEventListener('dragend', () => {
-            taskElement.classList.remove('dragging');
-            this.draggedTask = null;
+        // Click-to-select behavior instead of traditional drag
+        taskElement.addEventListener('click', (e) => {
+            // Don't select if clicking on buttons or inputs
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+                return;
+            }
+            
+            e.stopPropagation();
+            
+            if (this.selectedTask === task) {
+                // Clicking selected task again deselects it
+                this.deselectTask();
+            } else {
+                // Select this task
+                this.selectTask(task, taskElement);
+            }
         });
 
         return taskElement;
-    }
-
-    setTaskTime(task) {
-        const time = prompt('Enter time (HH:MM format):', task.time || '09:00');
-        if (time && this.isValidTime(time)) {
-            task.time = time;
-            if (task.type === 'daily') {
-                task.type = 'scheduled';
-            }
-            this.saveTasks();
-            this.renderTasks();
-        } else if (time === '') {
-            // Remove time
-            task.time = null;
-            if (task.type === 'scheduled') {
-                task.type = 'daily';
-            }
-            this.saveTasks();
-            this.renderTasks();
-        }
     }
 
     isValidTime(time) {
@@ -242,21 +285,24 @@ class TimeManagementApp {
 
     setupDropZones() {
         [this.dailyTasks, this.scheduledEvents].forEach(zone => {
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                zone.classList.add('drag-over');
+            zone.addEventListener('mouseover', (e) => {
+                if (this.selectedTask && this.isDragging) {
+                    zone.classList.add('drag-over');
+                }
             });
 
-            zone.addEventListener('dragleave', () => {
+            zone.addEventListener('mouseleave', () => {
                 zone.classList.remove('drag-over');
             });
 
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.classList.remove('drag-over');
-                
-                if (this.draggedTask) {
-                    this.moveTaskToDate(this.draggedTask, zone);
+            zone.addEventListener('click', (e) => {
+                if (this.selectedTask && this.isDragging) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    zone.classList.remove('drag-over');
+                    
+                    this.moveTaskToDate(this.selectedTask, zone);
+                    this.deselectTask();
                 }
             });
         });
@@ -286,6 +332,57 @@ class TimeManagementApp {
         this.renderTasks();
     }
 
+    selectTask(task, taskElement) {
+        // Deselect previous task
+        this.deselectTask();
+        
+        this.selectedTask = task;
+        this.selectedTaskElement = taskElement;
+        this.isDragging = true;
+        
+        taskElement.classList.add('selected');
+        
+        // Create drag preview
+        this.createDragPreview(task);
+    }
+    
+    deselectTask() {
+        if (this.selectedTaskElement) {
+            this.selectedTaskElement.classList.remove('selected');
+        }
+        if (this.dragPreview) {
+            this.dragPreview.remove();
+            this.dragPreview = null;
+        }
+        
+        this.selectedTask = null;
+        this.selectedTaskElement = null;
+        this.isDragging = false;
+    }
+    
+    createDragPreview(task) {
+        this.dragPreview = document.createElement('div');
+        this.dragPreview.className = 'drag-preview';
+        this.dragPreview.textContent = task.text;
+        this.dragPreview.style.position = 'fixed';
+        this.dragPreview.style.pointerEvents = 'none';
+        this.dragPreview.style.backgroundColor = '#3498db';
+        this.dragPreview.style.color = 'white';
+        this.dragPreview.style.padding = '0.5rem';
+        this.dragPreview.style.borderRadius = '4px';
+        this.dragPreview.style.zIndex = '1000';
+        this.dragPreview.style.fontSize = '0.9rem';
+        this.dragPreview.style.opacity = '0.8';
+        document.body.appendChild(this.dragPreview);
+    }
+    
+    updateDragPreview(e) {
+        if (this.dragPreview) {
+            this.dragPreview.style.left = (e.clientX + 10) + 'px';
+            this.dragPreview.style.top = (e.clientY - 10) + 'px';
+        }
+    }
+
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
@@ -306,5 +403,5 @@ class TimeManagementApp {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new TimeManagementApp();
+    window.app = new TimeManagementApp();
 });
