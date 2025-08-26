@@ -1,0 +1,46 @@
+# Development Goals & Feature List
+
+This file provides explicit instructions for developing the time management website. Follow these instructions precisely; do not make autonomous design decisions or add features not specified here.
+
+---
+
+## Vision
+
+Build a simple, web-based time management tool. Integrate daily scheduling and to-do list functionality so users can organize all tasks and events in a single, unified system. Every item must be assigned at least a date, preventing anything from being overlooked.
+
+---
+
+## Development Instructions
+
+1. **Implement Task and Event Creation**
+   - Enable users to quickly add tasks and events.
+   - Allow users to add tasks to a generalized "to do list". Users can then drag and drop tasks from the list onto a specific day. they can either specify a time (by double clicking or something) or leave it on the daily list. the goal for the user is to assign a date to everything that they want to do.
+
+2. **Design Daily Organization**
+   - Display a daily overview showing all tasks and scheduled events for each day.
+   - Allow tasks to be assigned to a day without a specific time slot.
+   - Ensure users can distinguish between timed events and general daily tasks.
+
+3. **User Interface Requirements**
+   - Prioritize minimal friction and speed for adding tasks and events.
+   - Maintain a clean, intuitive layout focused on daily organization.
+   - Make the desktop experience responsive and visually satisfying.
+   - Do not add mobile support unless explicitly requested.
+
+
+4. **Development Principles**
+   - Do not implement any user-facing AI features at this stage.
+   - Follow only the instructions and goals specified in this file.
+   - Structure code and data to allow for future expansion (e.g., analytics, AI-powered features).
+
+---
+
+## Future Features (Do Not Implement Yet)
+
+- Analytics and reporting.
+- Gamification and productivity insights.
+- AI-powered suggestions.
+  
+---
+
+*Follow all instructions in this file exactly. Do not deviate from the specified requirements.*
