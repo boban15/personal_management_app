@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Time Management App</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Time Management App</h1>
+        <div class="quick-add">
+            <input type="text" id="quick-task-input" placeholder="Quick add task or event..." />
+            <button id="add-task-btn">Add</button>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <aside class="todo-sidebar">
+            <h2>To-Do List</h2>
+            <div class="task-input-section">
+                <input type="text" id="new-task-input" placeholder="Add new task..." />
+                <button id="add-to-todo-btn">Add to List</button>
+            </div>
+            <div id="todo-list" class="todo-list">
+                <!-- Tasks will be dynamically added here -->
+            </div>
+        </aside>
+
+        <section class="daily-view">
+            <div class="date-navigation">
+                <button id="prev-day">&larr;</button>
+                <h2 id="current-date"></h2>
+                <button id="next-day">&rarr;</button>
+            </div>
+            
+            <div class="daily-content">
+                <div class="daily-tasks-section">
+                    <h3>Daily Tasks</h3>
+                    <div id="daily-tasks" class="daily-tasks drop-zone">
+                        <!-- Daily tasks without specific times -->
+                    </div>
+                </div>
+                
+                <div class="scheduled-events-section">
+                    <h3>Scheduled Events</h3>
+                    <div id="scheduled-events" class="scheduled-events">
+                        <!-- Timed events will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
