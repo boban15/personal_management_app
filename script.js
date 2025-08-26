@@ -15,11 +15,9 @@ class TimeManagementApp {
     initializeElements() {
         // Header elements
         this.quickTaskInput = document.getElementById('quick-task-input');
-        this.addTaskBtn = document.getElementById('add-task-btn');
         
         // Sidebar elements
         this.newTaskInput = document.getElementById('new-task-input');
-        this.addToTodoBtn = document.getElementById('add-to-todo-btn');
         this.todoList = document.getElementById('todo-list');
         
         // Daily view elements
@@ -32,13 +30,11 @@ class TimeManagementApp {
 
     bindEvents() {
         // Quick add functionality
-        this.addTaskBtn.addEventListener('click', () => this.addQuickTask());
         this.quickTaskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addQuickTask();
         });
 
         // Todo list functionality
-        this.addToTodoBtn.addEventListener('click', () => this.addToTodoList());
         this.newTaskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addToTodoList();
         });
@@ -239,11 +235,9 @@ class TimeManagementApp {
     }
 
     deleteTask(taskId) {
-        if (confirm('Are you sure you want to delete this task?')) {
-            this.tasks = this.tasks.filter(task => task.id !== taskId);
-            this.saveTasks();
-            this.renderTasks();
-        }
+        this.tasks = this.tasks.filter(task => task.id !== taskId);
+        this.saveTasks();
+        this.renderTasks();
     }
 
     setupDropZones() {
@@ -277,21 +271,15 @@ class TimeManagementApp {
         if (zone === this.dailyTasks) {
             task.type = 'daily';
             if (task.time) {
-                // Ask if user wants to keep the time
-                const keepTime = confirm('Keep the scheduled time for this task?');
-                if (keepTime) {
-                    task.type = 'scheduled';
-                } else {
-                    task.time = null;
-                }
+                // Keep the time and make it scheduled
+                task.type = 'scheduled';
             }
         } else if (zone === this.scheduledEvents) {
             if (!task.time) {
-                // Prompt for time if moving to scheduled events
-                this.setTaskTime(task);
-            } else {
-                task.type = 'scheduled';
+                // Set default time if moving to scheduled events
+                task.time = '09:00';
             }
+            task.type = 'scheduled';
         }
 
         this.saveTasks();
