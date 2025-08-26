@@ -176,8 +176,8 @@ class TimeManagementApp {
         const taskActions = document.createElement('div');
         taskActions.className = 'task-actions';
 
-        // Add time button for daily tasks
-        if (task.type === 'daily' || task.type === 'scheduled') {
+        // Add time button for tasks that can have time
+        if (task.type === 'todo' || task.type === 'daily' || task.type === 'scheduled') {
             const timeContainer = document.createElement('div');
             timeContainer.className = 'time-container';
             
@@ -208,11 +208,20 @@ class TimeManagementApp {
                     task.time = time;
                     if (task.type === 'daily') {
                         task.type = 'scheduled';
+                    } else if (task.type === 'todo') {
+                        // Todo with time becomes scheduled and gets current date
+                        task.type = 'scheduled';
+                        task.date = this.formatDate(this.currentDate);
                     }
                 } else {
                     task.time = null;
                     if (task.type === 'scheduled') {
-                        task.type = 'daily';
+                        // If scheduled task loses time, check if it has a date
+                        if (task.date) {
+                            task.type = 'daily';
+                        } else {
+                            task.type = 'todo';
+                        }
                     }
                 }
                 this.saveTasks();
