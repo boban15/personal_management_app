@@ -8,6 +8,12 @@ class TimeManagementApp {
         this.selectedTask = null;
         this.isDragging = false;
         
+        // View state management
+        this.currentView = 'daily'; // daily, weekly, monthly, thirty-day
+        this.weekStartDate = new Date();
+        this.monthDate = new Date();
+        this.thirtyDayStartDate = new Date();
+        
         // Calendar grid properties
         this.timeSlots = [];
         this.hoveredTimeSlot = null;
@@ -18,8 +24,9 @@ class TimeManagementApp {
         
         this.initializeElements();
         this.bindEvents();
+        this.updateViewClasses(); // Set initial view class
         this.updateDateDisplay();
-        this.renderTasks();
+        this.renderCurrentView();
     }
 
     initializeElements() {
@@ -27,12 +34,21 @@ class TimeManagementApp {
         this.newTaskInput = document.getElementById('new-task-input');
         this.todoList = document.getElementById('todo-list');
         
+        // View control elements
+        this.viewToggle = document.getElementById('view-toggle');
+        this.dailyViewSection = document.querySelector('.daily-view');
+        
         // Daily view elements
         this.prevDayBtn = document.getElementById('prev-day');
         this.nextDayBtn = document.getElementById('next-day');
         this.currentDateElement = document.getElementById('current-date');
         this.dailyTasks = document.getElementById('daily-tasks');
         this.scheduledEvents = document.getElementById('scheduled-events');
+        
+        // Multi-view elements
+        this.weeklyView = document.getElementById('weekly-view');
+        this.monthlyView = document.getElementById('monthly-view');
+        this.thirtyDayView = document.getElementById('thirty-day-view');
     }
 
     bindEvents() {
@@ -51,6 +67,9 @@ class TimeManagementApp {
         // Date navigation
         this.prevDayBtn.addEventListener('click', () => this.changeDate(-1));
         this.nextDayBtn.addEventListener('click', () => this.changeDate(1));
+        
+        // View toggle
+        this.viewToggle.addEventListener('click', () => this.toggleView());
 
         // Drop zones
         this.setupDropZones();
@@ -95,7 +114,7 @@ class TimeManagementApp {
 
         this.tasks.push(task);
         this.saveTasks();
-        this.renderTasks();
+        this.renderCurrentView();
         this.newTaskInput.value = '';
         
         // Track this task for potential double-enter
@@ -116,7 +135,7 @@ class TimeManagementApp {
         this.tasks[taskIndex].date = this.formatDate(this.currentDate);
         
         this.saveTasks();
-        this.renderTasks();
+        this.renderCurrentView();
         this.resetDoubleEnterTracking();
     }
 
@@ -126,27 +145,327 @@ class TimeManagementApp {
     }
 
     changeDate(direction) {
-        this.currentDate.setDate(this.currentDate.getDate() + direction);
+        switch(this.currentView) {
+            case 'daily':
+                this.currentDate.setDate(this.currentDate.getDate() + direction);
+                break;
+            case 'weekly':
+                this.weekStartDate.setDate(this.weekStartDate.getDate() + (direction * 7));
+                break;
+            case 'monthly':
+                this.monthDate.setMonth(this.monthDate.getMonth() + direction);
+                break;
+            case 'thirty-day':
+                this.thirtyDayStartDate.setDate(this.thirtyDayStartDate.getDate() + (direction * 30));
+                break;
+        }
         this.updateDateDisplay();
-        this.renderTasks();
+        this.renderCurrentView();
         // Reset double-enter tracking when changing dates
         this.resetDoubleEnterTracking();
     }
 
     updateDateDisplay() {
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        this.currentDateElement.textContent = this.currentDate.toLocaleDateString('en-US', options);
+        let displayText = '';
+        
+        switch(this.currentView) {
+            case 'daily':
+                const options = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                displayText = this.currentDate.toLocaleDateString('en-US', options);
+                break;
+            case 'weekly':
+                const weekStart = new Date(this.weekStartDate);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                displayText = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                break;
+            case 'monthly':
+                displayText = this.monthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                break;
+            case 'thirty-day':
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 1);
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 29);
+                displayText = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                break;
+        }
+        
+        this.currentDateElement.textContent = displayText;
     }
 
     renderTasks() {
         this.renderTodoList();
         this.renderDailyTasks();
         this.renderScheduledEvents();
+    }
+
+    renderCurrentView() {
+        this.renderTodoList(); // Always render todo list
+        this.updateViewClasses();
+        
+        switch(this.currentView) {
+            case 'daily':
+                this.renderDailyTasks();
+                this.renderScheduledEvents();
+                break;
+            case 'weekly':
+                this.renderWeeklyView();
+                break;
+            case 'monthly':
+                this.renderMonthlyView();
+                break;
+            case 'thirty-day':
+                this.renderThirtyDayView();
+                break;
+        }
+    }
+
+    toggleView() {
+        const views = ['daily', 'weekly', 'monthly', 'thirty-day'];
+        const currentIndex = views.indexOf(this.currentView);
+        const nextIndex = (currentIndex + 1) % views.length;
+        this.currentView = views[nextIndex];
+        
+        // Update button text
+        const viewNames = {
+            'daily': 'Daily View',
+            'weekly': 'Weekly View', 
+            'monthly': 'Monthly View',
+            'thirty-day': '30-Day View'
+        };
+        this.viewToggle.textContent = viewNames[this.currentView];
+        
+        this.updateDateDisplay();
+        this.renderCurrentView();
+    }
+
+    updateViewClasses() {
+        // Remove all view classes
+        this.dailyViewSection.classList.remove('view-daily', 'view-weekly', 'view-monthly', 'view-thirty-day');
+        // Add current view class
+        this.dailyViewSection.classList.add(`view-${this.currentView}`);
+    }
+
+    renderWeeklyView() {
+        this.weeklyView.innerHTML = '';
+        
+        // Calculate week start (Sunday)
+        const weekStart = new Date(this.weekStartDate);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        for (let i = 0; i < 7; i++) {
+            const currentDay = new Date(weekStart);
+            currentDay.setDate(weekStart.getDate() + i);
+            
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'week-day drop-zone';
+            dayContainer.dataset.date = this.formatDate(currentDay);
+            
+            if (this.isSameDay(currentDay, new Date())) {
+                dayContainer.classList.add('today');
+            }
+            
+            // Day header
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'week-day-header';
+            dayHeader.textContent = `${dayNames[i]} ${currentDay.getDate()}`;
+            dayContainer.appendChild(dayHeader);
+            
+            // Day tasks container
+            const dayTasks = document.createElement('div');
+            dayTasks.className = 'week-day-tasks';
+            dayContainer.appendChild(dayTasks);
+            
+            // Add tasks for this day
+            this.addTasksToWeekDay(dayTasks, currentDay);
+            
+            // Make it a drop zone for tasks
+            this.setupWeekDayDropZone(dayContainer, currentDay);
+            
+            this.weeklyView.appendChild(dayContainer);
+        }
+    }
+
+    renderMonthlyView() {
+        this.monthlyView.innerHTML = '';
+        
+        const year = this.monthDate.getFullYear();
+        const month = this.monthDate.getMonth();
+        
+        // Get first day of month and calculate starting date (include previous month days)
+        const firstDay = new Date(year, month, 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        // Create 42 days (6 weeks × 7 days)
+        for (let i = 0; i < 42; i++) {
+            const currentDay = new Date(startDate);
+            currentDay.setDate(startDate.getDate() + i);
+            
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'calendar-day drop-zone';
+            dayContainer.dataset.date = this.formatDate(currentDay);
+            
+            if (currentDay.getMonth() !== month) {
+                dayContainer.classList.add('other-month');
+            }
+            
+            if (this.isSameDay(currentDay, new Date())) {
+                dayContainer.classList.add('today');
+            }
+            
+            // Day number
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'calendar-day-number';
+            dayNumber.textContent = currentDay.getDate();
+            dayContainer.appendChild(dayNumber);
+            
+            // Day tasks container
+            const dayTasks = document.createElement('div');
+            dayTasks.className = 'calendar-day-tasks';
+            dayContainer.appendChild(dayTasks);
+            
+            // Add tasks for this day
+            this.addTasksToCalendarDay(dayTasks, currentDay);
+            
+            // Setup click to switch to daily view
+            this.setupCalendarDayClick(dayContainer, currentDay);
+            
+            this.monthlyView.appendChild(dayContainer);
+        }
+    }
+
+    renderThirtyDayView() {
+        this.thirtyDayView.innerHTML = '';
+        
+        // Calculate 30 days starting from yesterday
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 1);
+        
+        // Create grid layout similar to monthly view
+        for (let i = 0; i < 30; i++) {
+            const currentDay = new Date(startDate);
+            currentDay.setDate(startDate.getDate() + i);
+            
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'calendar-day drop-zone';
+            dayContainer.dataset.date = this.formatDate(currentDay);
+            
+            if (this.isSameDay(currentDay, new Date())) {
+                dayContainer.classList.add('today');
+            }
+            
+            // Day number and short month
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'calendar-day-number';
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            dayNumber.textContent = `${monthNames[currentDay.getMonth()]} ${currentDay.getDate()}`;
+            dayContainer.appendChild(dayNumber);
+            
+            // Day tasks container
+            const dayTasks = document.createElement('div');
+            dayTasks.className = 'calendar-day-tasks';
+            dayContainer.appendChild(dayTasks);
+            
+            // Add tasks for this day
+            this.addTasksToCalendarDay(dayTasks, currentDay);
+            
+            // Setup click to switch to daily view
+            this.setupCalendarDayClick(dayContainer, currentDay);
+            
+            this.thirtyDayView.appendChild(dayContainer);
+        }
+    }
+
+    // Helper methods for view rendering
+    isSameDay(date1, date2) {
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
+    }
+
+    addTasksToWeekDay(container, date) {
+        const dateStr = this.formatDate(date);
+        const dayTasks = this.tasks.filter(task => 
+            task.date === dateStr && (task.type === 'daily' || task.type === 'scheduled')
+        );
+        
+        dayTasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.className = 'calendar-task';
+            taskElement.textContent = task.text;
+            if (task.time) {
+                taskElement.textContent += ` (${task.time})`;
+            }
+            container.appendChild(taskElement);
+        });
+    }
+
+    addTasksToCalendarDay(container, date) {
+        const dateStr = this.formatDate(date);
+        const dayTasks = this.tasks.filter(task => 
+            task.date === dateStr && (task.type === 'daily' || task.type === 'scheduled')
+        );
+        
+        dayTasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.className = 'calendar-task';
+            taskElement.textContent = task.text;
+            if (task.time) {
+                taskElement.textContent += ` (${task.time})`;
+            }
+            container.appendChild(taskElement);
+        });
+    }
+
+    setupWeekDayDropZone(dayContainer, date) {
+        dayContainer.addEventListener('click', () => {
+            if (this.selectedTask && this.isDragging) {
+                // Move task to this day and switch to daily view
+                this.moveTaskToSpecificDate(this.selectedTask, date);
+                this.switchToDailyView(date);
+            }
+        });
+    }
+
+    setupCalendarDayClick(dayContainer, date) {
+        dayContainer.addEventListener('click', () => {
+            if (this.selectedTask && this.isDragging) {
+                // Move task to this day and switch to daily view
+                this.moveTaskToSpecificDate(this.selectedTask, date);
+                this.switchToDailyView(date);
+            } else {
+                // Just switch to daily view for this date
+                this.switchToDailyView(date);
+            }
+        });
+    }
+
+    moveTaskToSpecificDate(task, date) {
+        task.date = this.formatDate(date);
+        if (task.type === 'todo') {
+            task.type = 'daily';
+        }
+        this.saveTasks();
+        this.deselectTask();
+    }
+
+    switchToDailyView(date) {
+        this.currentDate = new Date(date);
+        this.currentView = 'daily';
+        this.viewToggle.textContent = 'Daily View';
+        this.updateDateDisplay();
+        this.renderCurrentView();
     }
 
     renderTodoList() {
@@ -346,7 +665,7 @@ class TimeManagementApp {
         
         this.saveTasks();
         this.deselectTask();
-        this.renderTasks();
+        this.renderCurrentView();
     }
 
     createTaskElement(task) {
@@ -410,7 +729,7 @@ class TimeManagementApp {
                     }
                 }
                 this.saveTasks();
-                this.renderTasks();
+                this.renderCurrentView();
             });
             
             timeInput.addEventListener('blur', () => {
@@ -474,7 +793,7 @@ class TimeManagementApp {
     deleteTask(taskId) {
         this.tasks = this.tasks.filter(task => task.id !== taskId);
         this.saveTasks();
-        this.renderTasks();
+        this.renderCurrentView();
     }
 
     setupDropZones() {
@@ -533,7 +852,7 @@ class TimeManagementApp {
         }
 
         this.saveTasks();
-        this.renderTasks();
+        this.renderCurrentView();
     }
 
     selectTask(task, taskElement) {

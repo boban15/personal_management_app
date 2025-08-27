@@ -22,6 +22,9 @@
         </aside>
 
         <section class="daily-view">
+            <div class="view-controls">
+                <button id="view-toggle" title="Switch view: Daily → Weekly → Monthly → 30-Day">Daily View</button>
+            </div>
             <div class="date-navigation">
                 <button id="prev-day">&larr;</button>
                 <h2 id="current-date"></h2>
@@ -42,6 +45,21 @@
                         <!-- Calendar grid will be dynamically generated here -->
                     </div>
                 </div>
+            </div>
+            
+            <!-- Weekly view -->
+            <div id="weekly-view" class="weekly-view">
+                <!-- Weekly calendar will be dynamically generated here -->
+            </div>
+            
+            <!-- Monthly view -->
+            <div id="monthly-view" class="monthly-view">
+                <!-- Monthly calendar will be dynamically generated here -->
+            </div>
+            
+            <!-- 30-day view -->
+            <div id="thirty-day-view" class="thirty-day-view">
+                <!-- 30-day calendar will be dynamically generated here -->
             </div>
         </section>
     </main>
