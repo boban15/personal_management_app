@@ -13,6 +13,7 @@ class TimeManagementApp {
         this.zoomLevel = 1; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
         this.hoverTime = 12; // Default center time (noon)
         this.hoveredTimeSlot = null;
+        this.autoZoomTimer = null; // Timer for automatic zoom progression
         
         // Zoom level configuration
         this.ZOOM_RANGES = {
@@ -231,8 +232,25 @@ class TimeManagementApp {
     getTimeIntervals() {
         const intervals = [];
         const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
-        const startTime = this.clampHour(this.hoverTime - visibleRange / 2);
-        const endTime = this.clampHour(this.hoverTime + visibleRange / 2);
+        
+        // Calculate desired start and end times
+        let startTime = this.hoverTime - visibleRange / 2;
+        let endTime = this.hoverTime + visibleRange / 2;
+        
+        // Adjust if we go out of bounds to maintain full visible range
+        if (startTime < 0) {
+            const adjustment = -startTime;
+            startTime = 0;
+            endTime = Math.min(24, endTime + adjustment);
+        } else if (endTime > 24) {
+            const adjustment = endTime - 24;
+            endTime = 24;
+            startTime = Math.max(0, startTime - adjustment);
+        }
+        
+        // Clamp to ensure we stay within 0-24 bounds
+        startTime = this.clampHour(startTime);
+        endTime = this.clampHour(endTime);
         
         // Generate hourly intervals for the visible range
         for (let hour = startTime; hour < endTime; hour++) {
@@ -314,21 +332,43 @@ class TimeManagementApp {
 
     // New zoom system based on hover position
     setupZoomHandlers() {
-        // Handle mouse movement for zoom and hover time tracking
+        // Handle mouse movement for automatic zoom and hover time tracking
         this.scheduledEvents.addEventListener('mousemove', (e) => {
             this.handleGridMouseMove(e);
         });
         
-        // Handle mouse wheel for zoom level changes
-        this.scheduledEvents.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            this.handleZoomWheel(e);
+        // Handle mouse enter to start auto zoom progression
+        this.scheduledEvents.addEventListener('mouseenter', () => {
+            this.startAutoZoom();
         });
         
         // Handle mouse leave to reset zoom
         this.scheduledEvents.addEventListener('mouseleave', () => {
             this.handleGridMouseLeave();
         });
+    }
+    
+    startAutoZoom() {
+        // Clear any existing auto zoom timer
+        if (this.autoZoomTimer) {
+            clearTimeout(this.autoZoomTimer);
+        }
+        
+        // Start progressive auto zoom
+        this.autoZoomTimer = setTimeout(() => {
+            if (this.zoomLevel < 2) {
+                this.zoomLevel = 2;
+                this.renderScheduledEvents();
+            }
+            
+            // Continue to next zoom level after additional delay
+            this.autoZoomTimer = setTimeout(() => {
+                if (this.zoomLevel < 3) {
+                    this.zoomLevel = 3;
+                    this.renderScheduledEvents();
+                }
+            }, 800); // Wait 800ms before going to level 3
+        }, 500); // Wait 500ms before going to level 2
     }
     
     handleGridMouseMove(e) {
@@ -350,19 +390,13 @@ class TimeManagementApp {
         }
     }
     
-    handleZoomWheel(e) {
-        const zoomIn = e.deltaY < 0;
-        const newZoomLevel = zoomIn 
-            ? Math.min(3, this.zoomLevel + 1)
-            : Math.max(1, this.zoomLevel - 1);
-            
-        if (newZoomLevel !== this.zoomLevel) {
-            this.zoomLevel = newZoomLevel;
-            this.renderScheduledEvents();
-        }
-    }
-    
     handleGridMouseLeave() {
+        // Clear auto zoom timer
+        if (this.autoZoomTimer) {
+            clearTimeout(this.autoZoomTimer);
+            this.autoZoomTimer = null;
+        }
+        
         // Reset to default zoom level and center time
         if (this.zoomLevel !== 1 || this.hoverTime !== 12) {
             this.zoomLevel = 1;
