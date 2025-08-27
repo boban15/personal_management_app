@@ -298,6 +298,15 @@ class TimeManagementApp {
     renderMonthlyView() {
         this.monthlyView.innerHTML = '';
         
+        // Add day-of-week headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(dayName => {
+            const headerElement = document.createElement('div');
+            headerElement.className = 'calendar-day-header';
+            headerElement.textContent = dayName;
+            this.monthlyView.appendChild(headerElement);
+        });
+        
         const year = this.monthDate.getFullYear();
         const month = this.monthDate.getMonth();
         
@@ -346,6 +355,15 @@ class TimeManagementApp {
 
     renderThirtyDayView() {
         this.thirtyDayView.innerHTML = '';
+        
+        // Add day-of-week headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(dayName => {
+            const headerElement = document.createElement('div');
+            headerElement.className = 'calendar-day-header';
+            headerElement.textContent = dayName;
+            this.thirtyDayView.appendChild(headerElement);
+        });
         
         // Calculate 30 days starting from yesterday
         const startDate = new Date();
@@ -434,6 +452,9 @@ class TimeManagementApp {
                 // Move task to this day and switch to daily view
                 this.moveTaskToSpecificDate(this.selectedTask, date);
                 this.switchToDailyView(date);
+            } else {
+                // Just switch to daily view for this date
+                this.switchToDailyView(date);
             }
         });
     }
@@ -457,7 +478,7 @@ class TimeManagementApp {
             task.type = 'daily';
         }
         this.saveTasks();
-        this.deselectTask();
+        // Don't automatically deselect task - keep it attached to cursor
     }
 
     switchToDailyView(date) {
