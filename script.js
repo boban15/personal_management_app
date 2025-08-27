@@ -10,8 +10,16 @@ class TimeManagementApp {
         
         // Calendar grid properties
         this.timeSlots = [];
-        this.zoomLevel = 1; // 1 = hourly, 2 = 30min, 3 = 20min, 4 = 10min, 5 = 5min
+        this.zoomLevel = 1; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
+        this.hoverTime = 12; // Default center time (noon)
         this.hoveredTimeSlot = null;
+        
+        // Zoom level configuration
+        this.ZOOM_RANGES = {
+            1: 24, // ±12 hrs (24hrs visible)
+            2: 12, // ±6 hrs (12hrs visible)  
+            3: 6   // ±3 hrs (6hrs visible)
+        };
         
         this.initializeElements();
         this.bindEvents();
@@ -187,7 +195,7 @@ class TimeManagementApp {
             taskContainer.className = 'task-container';
             timeSlot.appendChild(taskContainer);
             
-            // Add hover events for zoom functionality
+            // Add hover events for drag and drop
             timeSlot.addEventListener('mouseenter', (e) => {
                 if (this.selectedTask && this.isDragging) {
                     this.handleTimeSlotHover(timeSlot, interval);
@@ -210,74 +218,30 @@ class TimeManagementApp {
             this.scheduledEvents.appendChild(timeSlot);
             this.timeSlots.push({ element: timeSlot, interval });
         });
+        
+        // Add zoom functionality to the entire grid
+        this.setupZoomHandlers();
+    }
+
+    // Utility to clamp times between 0 and 24
+    clampHour(hour) {
+        return Math.max(0, Math.min(24, hour));
     }
 
     getTimeIntervals() {
         const intervals = [];
+        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
+        const startTime = this.clampHour(this.hoverTime - visibleRange / 2);
+        const endTime = this.clampHour(this.hoverTime + visibleRange / 2);
         
-        switch (this.zoomLevel) {
-            case 1: // Hourly
-                for (let hour = 0; hour < 24; hour++) {
-                    const time = `${hour.toString().padStart(2, '0')}:00`;
-                    intervals.push({
-                        time,
-                        display: this.formatTimeDisplay(time),
-                        duration: 60
-                    });
-                }
-                break;
-            case 2: // 30 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 30) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 30
-                        });
-                    }
-                }
-                break;
-            case 3: // 20 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 20) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 20
-                        });
-                    }
-                }
-                break;
-            case 4: // 10 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 10) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 10
-                        });
-                    }
-                }
-                break;
-            case 5: // 5 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 5) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 5
-                        });
-                    }
-                }
-                break;
-            default:
-                // Default to hourly
-                this.zoomLevel = 1;
-                return this.getTimeIntervals();
+        // Generate hourly intervals for the visible range
+        for (let hour = startTime; hour < endTime; hour++) {
+            const time = `${hour.toString().padStart(2, '0')}:00`;
+            intervals.push({
+                time,
+                display: this.formatTimeDisplay(time),
+                duration: 60
+            });
         }
         
         return intervals;
@@ -348,44 +312,87 @@ class TimeManagementApp {
         return hours * 60 + minutes;
     }
 
+    // New zoom system based on hover position
+    setupZoomHandlers() {
+        // Handle mouse movement for zoom and hover time tracking
+        this.scheduledEvents.addEventListener('mousemove', (e) => {
+            this.handleGridMouseMove(e);
+        });
+        
+        // Handle mouse wheel for zoom level changes
+        this.scheduledEvents.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.handleZoomWheel(e);
+        });
+        
+        // Handle mouse leave to reset zoom
+        this.scheduledEvents.addEventListener('mouseleave', () => {
+            this.handleGridMouseLeave();
+        });
+    }
+    
+    handleGridMouseMove(e) {
+        const rect = this.scheduledEvents.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const gridHeight = rect.height;
+        
+        // Calculate which time we're hovering over based on current visible range
+        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
+        const startTime = this.clampHour(this.hoverTime - visibleRange / 2);
+        const timeProgress = y / gridHeight;
+        const hoverHour = startTime + (timeProgress * visibleRange);
+        
+        // Update hover time and re-render if it changed significantly
+        const newHoverTime = this.clampHour(Math.round(hoverHour));
+        if (Math.abs(newHoverTime - this.hoverTime) >= 1) {
+            this.hoverTime = newHoverTime;
+            this.renderScheduledEvents();
+        }
+    }
+    
+    handleZoomWheel(e) {
+        const zoomIn = e.deltaY < 0;
+        const newZoomLevel = zoomIn 
+            ? Math.min(3, this.zoomLevel + 1)
+            : Math.max(1, this.zoomLevel - 1);
+            
+        if (newZoomLevel !== this.zoomLevel) {
+            this.zoomLevel = newZoomLevel;
+            this.renderScheduledEvents();
+        }
+    }
+    
+    handleGridMouseLeave() {
+        // Reset to default zoom level and center time
+        if (this.zoomLevel !== 1 || this.hoverTime !== 12) {
+            this.zoomLevel = 1;
+            this.hoverTime = 12;
+            this.renderScheduledEvents();
+        }
+    }
+
     handleTimeSlotHover(timeSlot, interval) {
         this.hoveredTimeSlot = timeSlot;
         
         // Add hover class
         timeSlot.classList.add('time-slot-hover');
-        
-        // Implement zoom functionality - increase zoom level gradually
-        if (this.zoomLevel < 5) {
-            this.startZoomTransition(timeSlot, interval);
-        }
     }
 
     handleTimeSlotLeave(timeSlot) {
         timeSlot.classList.remove('time-slot-hover');
-        
-        // Reset zoom after a delay if not hovering over another slot
-        setTimeout(() => {
-            if (this.hoveredTimeSlot !== timeSlot) {
-                this.resetZoom();
-            }
-        }, 300);
+        this.hoveredTimeSlot = null;
     }
 
     startZoomTransition(timeSlot, interval) {
-        // Gradually increase zoom level
-        setTimeout(() => {
-            if (this.hoveredTimeSlot === timeSlot && this.zoomLevel < 5) {
-                this.zoomLevel++;
-                this.renderScheduledEvents();
-            }
-        }, 500); // 500ms delay before zooming
+        // This method is no longer needed with the new zoom system
+        // Keeping for compatibility but it does nothing
     }
 
     resetZoom() {
-        if (this.zoomLevel > 1) {
-            this.zoomLevel = 1;
-            this.renderScheduledEvents();
-        }
+        // Reset to default state
+        this.zoomLevel = 1;
+        this.hoverTime = 12;
+        this.renderScheduledEvents();
     }
 
     dropTaskInTimeSlot(timeSlot, interval) {
@@ -398,7 +405,6 @@ class TimeManagementApp {
         
         this.saveTasks();
         this.deselectTask();
-        this.resetZoom();
         this.renderTasks();
     }
 

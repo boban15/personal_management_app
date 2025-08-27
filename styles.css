@@ -60,6 +60,7 @@ body {
 .app-main {
     display: flex;
     height: calc(100vh - 80px);
+    overflow: hidden;
 }
 
 /* Sidebar */
@@ -114,7 +115,9 @@ body {
 .daily-view {
     flex: 1;
     padding: 1.5rem;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .date-navigation {
@@ -150,7 +153,8 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
-    height: calc(100% - 100px);
+    flex: 1;
+    overflow: hidden;
 }
 
 .daily-tasks-section,
@@ -159,6 +163,9 @@ body {
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .daily-tasks-section h3,
@@ -287,8 +294,8 @@ body {
 .scheduled-events-grid {
     display: flex;
     flex-direction: column;
-    max-height: 500px;
-    overflow-y: auto;
+    flex: 1;
+    overflow: hidden;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
 }
