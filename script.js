@@ -29,9 +29,6 @@ class TimeManagementApp {
     }
 
     initializeElements() {
-        // Header elements
-        this.quickTaskInput = document.getElementById('quick-task-input');
-        
         // Sidebar elements
         this.newTaskInput = document.getElementById('new-task-input');
         this.todoList = document.getElementById('todo-list');
@@ -45,11 +42,6 @@ class TimeManagementApp {
     }
 
     bindEvents() {
-        // Quick add functionality
-        this.quickTaskInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addQuickTask();
-        });
-
         // Todo list functionality
         this.newTaskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addToTodoList();
@@ -75,24 +67,6 @@ class TimeManagementApp {
                 this.deselectTask();
             }
         });
-    }
-
-    addQuickTask() {
-        const text = this.quickTaskInput.value.trim();
-        if (!text) return;
-
-        const task = {
-            id: this.generateId(),
-            text: text,
-            date: this.formatDate(this.currentDate),
-            time: null,
-            type: 'daily'
-        };
-
-        this.tasks.push(task);
-        this.saveTasks();
-        this.renderTasks();
-        this.quickTaskInput.value = '';
     }
 
     addToTodoList() {
