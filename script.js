@@ -22,6 +22,10 @@ class TimeManagementApp {
             3: 6   // ±3 hrs (6hrs visible)
         };
         
+        // Double-enter feature tracking
+        this.lastAddedTaskId = null;
+        this.justAddedTask = false;
+        
         this.initializeElements();
         this.bindEvents();
         this.updateDateDisplay();
@@ -45,6 +49,13 @@ class TimeManagementApp {
         // Todo list functionality
         this.newTaskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addToTodoList();
+        });
+        
+        // Reset double-enter tracking when user starts typing
+        this.newTaskInput.addEventListener('input', () => {
+            if (this.newTaskInput.value.trim()) {
+                this.resetDoubleEnterTracking();
+            }
         });
 
         // Date navigation
@@ -71,7 +82,18 @@ class TimeManagementApp {
 
     addToTodoList() {
         const text = this.newTaskInput.value.trim();
-        if (!text) return;
+        
+        // Check if this is a double-enter (empty input after just adding a task)
+        if (!text && this.justAddedTask && this.lastAddedTaskId) {
+            this.moveLastTaskToDaily();
+            return;
+        }
+        
+        // Reset double-enter tracking if there's no text
+        if (!text) {
+            this.resetDoubleEnterTracking();
+            return;
+        }
 
         const task = {
             id: this.generateId(),
@@ -85,12 +107,40 @@ class TimeManagementApp {
         this.saveTasks();
         this.renderTasks();
         this.newTaskInput.value = '';
+        
+        // Track this task for potential double-enter
+        this.lastAddedTaskId = task.id;
+        this.justAddedTask = true;
+    }
+
+    moveLastTaskToDaily() {
+        // Find the last added task
+        const taskIndex = this.tasks.findIndex(task => task.id === this.lastAddedTaskId);
+        if (taskIndex === -1) {
+            this.resetDoubleEnterTracking();
+            return;
+        }
+
+        // Move the task to daily type with current date
+        this.tasks[taskIndex].type = 'daily';
+        this.tasks[taskIndex].date = this.formatDate(this.currentDate);
+        
+        this.saveTasks();
+        this.renderTasks();
+        this.resetDoubleEnterTracking();
+    }
+
+    resetDoubleEnterTracking() {
+        this.lastAddedTaskId = null;
+        this.justAddedTask = false;
     }
 
     changeDate(direction) {
         this.currentDate.setDate(this.currentDate.getDate() + direction);
         this.updateDateDisplay();
         this.renderTasks();
+        // Reset double-enter tracking when changing dates
+        this.resetDoubleEnterTracking();
     }
 
     updateDateDisplay() {
