@@ -412,8 +412,18 @@ class TimeManagementApp {
         const rect = this.scheduledEvents.getBoundingClientRect();
         const relativeY = e.clientY - rect.top;
         
-        // Update zoom center BEFORE changing zoom level
-        this.updateZoomCenter(relativeY);
+        // Find which time slot the cursor is actually over
+        const hoveredSlot = this.findTimeSlotUnderCursor(e.clientX, e.clientY);
+        
+        if (hoveredSlot) {
+            // Use the exact time from the hovered slot
+            this.zoomCenterTime = hoveredSlot.dataset.time;
+            const [hours, minutes] = this.zoomCenterTime.split(':');
+            this.zoomCenterHour = parseInt(hours) + parseInt(minutes) / 60;
+        } else {
+            // Fallback to position-based calculation
+            this.updateZoomCenter(relativeY);
+        }
         
         // Zoom in or out based on wheel direction
         if (e.deltaY < 0) {
@@ -434,6 +444,21 @@ class TimeManagementApp {
         }
     }
 
+    findTimeSlotUnderCursor(clientX, clientY) {
+        const elements = document.elementsFromPoint(clientX, clientY);
+        
+        for (let el of elements) {
+            if (el.classList.contains('time-slot')) {
+                return el;
+            }
+            const timeSlot = el.closest('.time-slot');
+            if (timeSlot) {
+                return timeSlot;
+            }
+        }
+        return null;
+    }
+
     updateZoomCenter(relativeY) {
         // Get the current intervals (before zoom change)
         const currentIntervals = this.getCurrentTimeRange();
@@ -451,8 +476,6 @@ class TimeManagementApp {
                 // Extract hour for zoom center calculations
                 const [hours, minutes] = this.zoomCenterTime.split(':');
                 this.zoomCenterHour = parseInt(hours) + parseInt(minutes) / 60;
-                
-                console.log(`Zoom center set to: ${this.zoomCenterTime} (hour: ${this.zoomCenterHour})`);
             }
         }
     }
