@@ -171,7 +171,7 @@ body {
 }
 
 .daily-tasks,
-.scheduled-events {
+.scheduled-events-grid {
     min-height: 300px;
 }
 
@@ -283,14 +283,92 @@ body {
     background-color: #ebf3fd;
 }
 
-/* Scheduled events specific styling */
-.scheduled-events .task-item {
-    background-color: #e8f5e8;
-    border-color: #27ae60;
+/* Scheduled events calendar grid */
+.scheduled-events-grid {
+    display: flex;
+    flex-direction: column;
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
 }
 
-.scheduled-events .task-item:hover {
-    background-color: #d5e7d5;
+.time-slot {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.time-slot:hover {
+    background-color: #f8f9fa;
+}
+
+.time-slot.time-slot-hover {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+.time-label {
+    width: 80px;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: #666;
+    border-right: 1px solid #e0e0e0;
+    background-color: #fafafa;
+    flex-shrink: 0;
+    text-align: center;
+    font-weight: 500;
+}
+
+.task-container {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    min-height: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.grid-task {
+    background-color: #e8f5e8;
+    border: 1px solid #27ae60;
+    border-radius: 3px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    margin: 0;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.grid-task .task-content {
+    font-size: 0.8rem;
+}
+
+.grid-task .task-actions {
+    display: none; /* Hide actions in grid view to save space */
+}
+
+.grid-task:hover .task-actions {
+    display: flex;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+.grid-task .task-actions button {
+    font-size: 0.7rem;
+    padding: 0.1rem;
 }
 
 /* Responsive design */
