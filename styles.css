@@ -276,7 +276,7 @@ body {
     display: flex;
     align-items: center;
     flex: 1;
-    min-height: 0;
+    min-height: 35px;
     height: auto;
     border-bottom: 1px solid #f0f0f0;
     transition: all 0.2s ease;
