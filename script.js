@@ -10,7 +10,7 @@ class TimeManagementApp {
         
         // Calendar grid properties
         this.timeSlots = [];
-        this.zoomLevel = 1; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
+        this.zoomLevel = 2; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
         this.hoverTime = 12; // Default center time (noon)
         this.hoveredTimeSlot = null;
         this.autoZoomTimer = null; // Timer for automatic zoom progression
@@ -398,8 +398,8 @@ class TimeManagementApp {
         }
         
         // Reset to default zoom level and center time
-        if (this.zoomLevel !== 1 || this.hoverTime !== 12) {
-            this.zoomLevel = 1;
+        if (this.zoomLevel !== 2 || this.hoverTime !== 12) {
+            this.zoomLevel = 2;
             this.hoverTime = 12;
             this.renderScheduledEvents();
         }
@@ -424,7 +424,7 @@ class TimeManagementApp {
 
     resetZoom() {
         // Reset to default state
-        this.zoomLevel = 1;
+        this.zoomLevel = 2;
         this.hoverTime = 12;
         this.renderScheduledEvents();
     }
