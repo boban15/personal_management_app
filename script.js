@@ -10,17 +10,7 @@ class TimeManagementApp {
         
         // Calendar grid properties
         this.timeSlots = [];
-        this.zoomLevel = 1; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
-        this.hoverTime = 12; // Default center time (noon)
         this.hoveredTimeSlot = null;
-        this.autoZoomTimer = null; // Timer for automatic zoom progression
-        
-        // Zoom level configuration
-        this.ZOOM_RANGES = {
-            1: 24, // ±12 hrs (24hrs visible)
-            2: 12, // ±6 hrs (12hrs visible)  
-            3: 6   // ±3 hrs (6hrs visible)
-        };
         
         this.initializeElements();
         this.bindEvents();
@@ -29,9 +19,6 @@ class TimeManagementApp {
     }
 
     initializeElements() {
-        // Header elements
-        this.quickTaskInput = document.getElementById('quick-task-input');
-        
         // Sidebar elements
         this.newTaskInput = document.getElementById('new-task-input');
         this.todoList = document.getElementById('todo-list');
@@ -45,11 +32,6 @@ class TimeManagementApp {
     }
 
     bindEvents() {
-        // Quick add functionality
-        this.quickTaskInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addQuickTask();
-        });
-
         // Todo list functionality
         this.newTaskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addToTodoList();
@@ -75,24 +57,6 @@ class TimeManagementApp {
                 this.deselectTask();
             }
         });
-    }
-
-    addQuickTask() {
-        const text = this.quickTaskInput.value.trim();
-        if (!text) return;
-
-        const task = {
-            id: this.generateId(),
-            text: text,
-            date: this.formatDate(this.currentDate),
-            time: null,
-            type: 'daily'
-        };
-
-        this.tasks.push(task);
-        this.saveTasks();
-        this.renderTasks();
-        this.quickTaskInput.value = '';
     }
 
     addToTodoList() {
@@ -219,41 +183,13 @@ class TimeManagementApp {
             this.scheduledEvents.appendChild(timeSlot);
             this.timeSlots.push({ element: timeSlot, interval });
         });
-        
-        // Add zoom functionality to the entire grid
-        this.setupZoomHandlers();
-    }
-
-    // Utility to clamp times between 0 and 24
-    clampHour(hour) {
-        return Math.max(0, Math.min(24, hour));
     }
 
     getTimeIntervals() {
         const intervals = [];
-        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
         
-        // Calculate desired start and end times
-        let startTime = this.hoverTime - visibleRange / 2;
-        let endTime = this.hoverTime + visibleRange / 2;
-        
-        // Adjust if we go out of bounds to maintain full visible range
-        if (startTime < 0) {
-            const adjustment = -startTime;
-            startTime = 0;
-            endTime = Math.min(24, endTime + adjustment);
-        } else if (endTime > 24) {
-            const adjustment = endTime - 24;
-            endTime = 24;
-            startTime = Math.max(0, startTime - adjustment);
-        }
-        
-        // Clamp to ensure we stay within 0-24 bounds
-        startTime = this.clampHour(startTime);
-        endTime = this.clampHour(endTime);
-        
-        // Generate hourly intervals for the visible range
-        for (let hour = startTime; hour < endTime; hour++) {
+        // Generate hourly intervals for the full 24-hour day
+        for (let hour = 0; hour < 24; hour++) {
             const time = `${hour.toString().padStart(2, '0')}:00`;
             intervals.push({
                 time,
@@ -330,81 +266,6 @@ class TimeManagementApp {
         return hours * 60 + minutes;
     }
 
-    // New zoom system based on hover position
-    setupZoomHandlers() {
-        // Handle mouse movement for automatic zoom and hover time tracking
-        this.scheduledEvents.addEventListener('mousemove', (e) => {
-            this.handleGridMouseMove(e);
-        });
-        
-        // Handle mouse enter to start auto zoom progression
-        this.scheduledEvents.addEventListener('mouseenter', () => {
-            this.startAutoZoom();
-        });
-        
-        // Handle mouse leave to reset zoom
-        this.scheduledEvents.addEventListener('mouseleave', () => {
-            this.handleGridMouseLeave();
-        });
-    }
-    
-    startAutoZoom() {
-        // Clear any existing auto zoom timer
-        if (this.autoZoomTimer) {
-            clearTimeout(this.autoZoomTimer);
-        }
-        
-        // Start progressive auto zoom
-        this.autoZoomTimer = setTimeout(() => {
-            if (this.zoomLevel < 2) {
-                this.zoomLevel = 2;
-                this.renderScheduledEvents();
-            }
-            
-            // Continue to next zoom level after additional delay
-            this.autoZoomTimer = setTimeout(() => {
-                if (this.zoomLevel < 3) {
-                    this.zoomLevel = 3;
-                    this.renderScheduledEvents();
-                }
-            }, 800); // Wait 800ms before going to level 3
-        }, 500); // Wait 500ms before going to level 2
-    }
-    
-    handleGridMouseMove(e) {
-        const rect = this.scheduledEvents.getBoundingClientRect();
-        const y = e.clientY - rect.top;
-        const gridHeight = rect.height;
-        
-        // Calculate which time we're hovering over based on current visible range
-        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
-        const startTime = this.clampHour(this.hoverTime - visibleRange / 2);
-        const timeProgress = y / gridHeight;
-        const hoverHour = startTime + (timeProgress * visibleRange);
-        
-        // Update hover time and re-render if it changed significantly
-        const newHoverTime = this.clampHour(Math.round(hoverHour));
-        if (Math.abs(newHoverTime - this.hoverTime) >= 1) {
-            this.hoverTime = newHoverTime;
-            this.renderScheduledEvents();
-        }
-    }
-    
-    handleGridMouseLeave() {
-        // Clear auto zoom timer
-        if (this.autoZoomTimer) {
-            clearTimeout(this.autoZoomTimer);
-            this.autoZoomTimer = null;
-        }
-        
-        // Reset to default zoom level and center time
-        if (this.zoomLevel !== 1 || this.hoverTime !== 12) {
-            this.zoomLevel = 1;
-            this.hoverTime = 12;
-            this.renderScheduledEvents();
-        }
-    }
-
     handleTimeSlotHover(timeSlot, interval) {
         this.hoveredTimeSlot = timeSlot;
         
@@ -415,18 +276,6 @@ class TimeManagementApp {
     handleTimeSlotLeave(timeSlot) {
         timeSlot.classList.remove('time-slot-hover');
         this.hoveredTimeSlot = null;
-    }
-
-    startZoomTransition(timeSlot, interval) {
-        // This method is no longer needed with the new zoom system
-        // Keeping for compatibility but it does nothing
-    }
-
-    resetZoom() {
-        // Reset to default state
-        this.zoomLevel = 1;
-        this.hoverTime = 12;
-        this.renderScheduledEvents();
     }
 
     dropTaskInTimeSlot(timeSlot, interval) {
