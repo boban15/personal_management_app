@@ -469,9 +469,11 @@ class TimeManagementApp {
     }
 
     setupCalendarDayClick(dayContainer, date) {
-        dayContainer.addEventListener('click', () => {
+        dayContainer.addEventListener('click', (e) => {
             if (this.selectedTask && this.isDragging) {
                 // Move task to this day and switch to daily view
+                e.preventDefault();
+                e.stopPropagation();
                 this.moveTaskToSpecificDate(this.selectedTask, date);
                 this.switchToDailyView(date);
             } else {
