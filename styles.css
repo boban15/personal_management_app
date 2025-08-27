@@ -303,10 +303,16 @@ body {
 .time-slot {
     display: flex;
     align-items: center;
-    min-height: 40px;
+    flex: 1;
+    min-height: 0;
+    height: auto;
     border-bottom: 1px solid #f0f0f0;
     transition: all 0.2s ease;
     position: relative;
+}
+
+.time-slot:last-child {
+    border-bottom: none;
 }
 
 .time-slot:hover {
