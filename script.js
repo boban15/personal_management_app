@@ -498,6 +498,12 @@ class TimeManagementApp {
         todoTasks.forEach(task => {
             const taskElement = this.createTaskElement(task);
             this.todoList.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -511,6 +517,12 @@ class TimeManagementApp {
         dailyTasks.forEach(task => {
             const taskElement = this.createTaskElement(task);
             this.dailyTasks.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -618,6 +630,12 @@ class TimeManagementApp {
             taskElement.classList.add('grid-task');
             const taskContainer = timeSlot.element.querySelector('.task-container');
             taskContainer.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         }
     }
 
