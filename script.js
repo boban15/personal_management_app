@@ -189,15 +189,11 @@ class TimeManagementApp {
             
             // Add hover events for zoom functionality
             timeSlot.addEventListener('mouseenter', (e) => {
-                if (this.selectedTask && this.isDragging) {
-                    this.handleTimeSlotHover(timeSlot, interval);
-                }
+                this.handleTimeSlotHover(timeSlot, interval);
             });
             
             timeSlot.addEventListener('mouseleave', () => {
-                if (this.selectedTask && this.isDragging) {
-                    this.handleTimeSlotLeave(timeSlot);
-                }
+                this.handleTimeSlotLeave(timeSlot);
             });
             
             // Click to place task
@@ -378,13 +374,26 @@ class TimeManagementApp {
                 this.zoomLevel++;
                 this.renderScheduledEvents();
             }
-        }, 500); // 500ms delay before zooming
+        }, 1000); // 1000ms delay before zooming (50% slower)
     }
 
     resetZoom() {
         if (this.zoomLevel > 1) {
             this.zoomLevel = 1;
             this.renderScheduledEvents();
+        }
+    }
+
+    resetZoomGradually() {
+        if (this.zoomLevel > 1) {
+            const resetStep = () => {
+                if (this.zoomLevel > 1) {
+                    this.zoomLevel--;
+                    this.renderScheduledEvents();
+                    setTimeout(resetStep, 200); // Gradual reset with 200ms between steps
+                }
+            };
+            setTimeout(resetStep, 100); // Start gradual reset after 100ms
         }
     }
 
@@ -398,7 +407,7 @@ class TimeManagementApp {
         
         this.saveTasks();
         this.deselectTask();
-        this.resetZoom();
+        this.resetZoomGradually(); // Gradual zoom reset after scheduling
         this.renderTasks();
     }
 
@@ -562,6 +571,9 @@ class TimeManagementApp {
 
         this.scheduledEvents.addEventListener('mouseleave', () => {
             this.scheduledEvents.classList.remove('drag-over');
+            // Reset zoom when cursor leaves the scheduled events section
+            this.hoveredTimeSlot = null;
+            this.resetZoom();
         });
     }
 
