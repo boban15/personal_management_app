@@ -22,6 +22,9 @@ class TimeManagementApp {
         this.lastAddedTaskId = null;
         this.justAddedTask = false;
         
+        // Task popup
+        this.taskPopup = null;
+        
         this.initializeElements();
         this.bindEvents();
         this.updateViewClasses(); // Set initial view class
@@ -190,7 +193,6 @@ class TimeManagementApp {
                 break;
             case 'thirty-day':
                 const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 1);
                 const endDate = new Date(startDate);
                 endDate.setDate(startDate.getDate() + 29);
                 displayText = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -356,18 +358,21 @@ class TimeManagementApp {
     renderThirtyDayView() {
         this.thirtyDayView.innerHTML = '';
         
-        // Add day-of-week headers
+        // Calculate 30 days starting from current day
+        const startDate = new Date();
+        
+        // Add dynamic day-of-week headers based on starting day
         const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        dayHeaders.forEach(dayName => {
+        const startDayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        // Create headers starting from the current day
+        for (let i = 0; i < 7; i++) {
+            const dayIndex = (startDayOfWeek + i) % 7;
             const headerElement = document.createElement('div');
             headerElement.className = 'calendar-day-header';
-            headerElement.textContent = dayName;
+            headerElement.textContent = dayHeaders[dayIndex];
             this.thirtyDayView.appendChild(headerElement);
-        });
-        
-        // Calculate 30 days starting from yesterday
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 1);
+        }
         
         // Create grid layout similar to monthly view
         for (let i = 0; i < 30; i++) {
@@ -419,13 +424,15 @@ class TimeManagementApp {
         );
         
         dayTasks.forEach(task => {
-            const taskElement = document.createElement('div');
-            taskElement.className = 'calendar-task';
-            taskElement.textContent = task.text;
-            if (task.time) {
-                taskElement.textContent += ` (${task.time})`;
-            }
+            const taskElement = this.createTaskElement(task);
+            taskElement.classList.add('calendar-task');
             container.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -436,13 +443,15 @@ class TimeManagementApp {
         );
         
         dayTasks.forEach(task => {
-            const taskElement = document.createElement('div');
-            taskElement.className = 'calendar-task';
-            taskElement.textContent = task.text;
-            if (task.time) {
-                taskElement.textContent += ` (${task.time})`;
-            }
+            const taskElement = this.createTaskElement(task);
+            taskElement.classList.add('calendar-task');
             container.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -496,6 +505,12 @@ class TimeManagementApp {
         todoTasks.forEach(task => {
             const taskElement = this.createTaskElement(task);
             this.todoList.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -509,6 +524,12 @@ class TimeManagementApp {
         dailyTasks.forEach(task => {
             const taskElement = this.createTaskElement(task);
             this.dailyTasks.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         });
     }
 
@@ -616,6 +637,12 @@ class TimeManagementApp {
             taskElement.classList.add('grid-task');
             const taskContainer = timeSlot.element.querySelector('.task-container');
             taskContainer.appendChild(taskElement);
+            
+            // Re-establish reference if this is the currently selected task
+            if (this.selectedTask && this.selectedTask.id === task.id) {
+                this.selectedTaskElement = taskElement;
+                taskElement.classList.add('selected');
+            }
         }
     }
 
@@ -803,7 +830,98 @@ class TimeManagementApp {
             }
         });
 
+        // Add hover popup functionality for all view modes
+        taskElement.addEventListener('mouseenter', (e) => {
+            this.showTaskPopup(task, taskElement, e);
+        });
+
+        taskElement.addEventListener('mouseleave', () => {
+            this.hideTaskPopup();
+        });
+
         return taskElement;
+    }
+
+    showTaskPopup(task, taskElement, event) {
+        // Remove existing popup if any
+        this.hideTaskPopup();
+        
+        // Create popup element
+        this.taskPopup = document.createElement('div');
+        this.taskPopup.className = 'task-popup';
+        
+        // Popup content
+        const title = document.createElement('div');
+        title.className = 'task-popup-title';
+        title.textContent = task.text;
+        this.taskPopup.appendChild(title);
+        
+        const details = document.createElement('div');
+        details.className = 'task-popup-details';
+        
+        if (task.time) {
+            const timeInfo = document.createElement('div');
+            timeInfo.className = 'task-popup-time';
+            timeInfo.textContent = `⏰ ${task.time}`;
+            details.appendChild(timeInfo);
+        }
+        
+        if (task.date) {
+            const dateInfo = document.createElement('div');
+            dateInfo.textContent = `📅 ${task.date}`;
+            details.appendChild(dateInfo);
+        }
+        
+        const typeInfo = document.createElement('div');
+        typeInfo.className = 'task-popup-type';
+        typeInfo.textContent = task.type.charAt(0).toUpperCase() + task.type.slice(1);
+        details.appendChild(typeInfo);
+        
+        this.taskPopup.appendChild(details);
+        
+        // Add to document
+        document.body.appendChild(this.taskPopup);
+        
+        // Position popup adjacent to the task (to the right)
+        this.positionTaskPopup(taskElement);
+    }
+    
+    hideTaskPopup() {
+        if (this.taskPopup) {
+            this.taskPopup.remove();
+            this.taskPopup = null;
+        }
+    }
+    
+    positionTaskPopup(taskElement) {
+        if (!this.taskPopup) return;
+        
+        const rect = taskElement.getBoundingClientRect();
+        const popupRect = this.taskPopup.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Default position: to the right of the task
+        let left = rect.right + 10;
+        let top = rect.top;
+        
+        // Adjust if popup would go off screen to the right
+        if (left + popupRect.width > viewportWidth) {
+            left = rect.left - popupRect.width - 10; // Position to the left instead
+        }
+        
+        // Adjust if popup would go off screen at the bottom
+        if (top + popupRect.height > viewportHeight) {
+            top = viewportHeight - popupRect.height - 10;
+        }
+        
+        // Ensure popup is not above the top of the viewport
+        if (top < 10) {
+            top = 10;
+        }
+        
+        this.taskPopup.style.left = `${left}px`;
+        this.taskPopup.style.top = `${top}px`;
     }
 
     isValidTime(time) {
