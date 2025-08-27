@@ -10,17 +10,9 @@ class TimeManagementApp {
         
         // Calendar grid properties
         this.timeSlots = [];
-        this.zoomLevel = 1; // 1 = 24hrs, 2 = 12hrs, 3 = 6hrs
-        this.hoverTime = 12; // Default center time (noon)
+        this.currentView = 'daily'; // daily, weekly, monthly, thirty-day
+        this.previousView = 'daily'; // for temporary view switching
         this.hoveredTimeSlot = null;
-        this.autoZoomTimer = null; // Timer for automatic zoom progression
-        
-        // Zoom level configuration
-        this.ZOOM_RANGES = {
-            1: 24, // ±12 hrs (24hrs visible)
-            2: 12, // ±6 hrs (12hrs visible)  
-            3: 6   // ±3 hrs (6hrs visible)
-        };
         
         this.initializeElements();
         this.bindEvents();
@@ -42,6 +34,10 @@ class TimeManagementApp {
         this.currentDateElement = document.getElementById('current-date');
         this.dailyTasks = document.getElementById('daily-tasks');
         this.scheduledEvents = document.getElementById('scheduled-events');
+        
+        // View toggle elements (will be created)
+        this.viewToggleBtn = document.getElementById('view-toggle');
+        this.viewDropdown = document.getElementById('view-dropdown');
     }
 
     bindEvents() {
@@ -58,6 +54,9 @@ class TimeManagementApp {
         // Date navigation
         this.prevDayBtn.addEventListener('click', () => this.changeDate(-1));
         this.nextDayBtn.addEventListener('click', () => this.changeDate(1));
+
+        // View toggle functionality
+        this.setupViewToggle();
 
         // Drop zones
         this.setupDropZones();
@@ -132,7 +131,7 @@ class TimeManagementApp {
     renderTasks() {
         this.renderTodoList();
         this.renderDailyTasks();
-        this.renderScheduledEvents();
+        this.renderCurrentView();
     }
 
     renderTodoList() {
@@ -219,41 +218,13 @@ class TimeManagementApp {
             this.scheduledEvents.appendChild(timeSlot);
             this.timeSlots.push({ element: timeSlot, interval });
         });
-        
-        // Add zoom functionality to the entire grid
-        this.setupZoomHandlers();
-    }
-
-    // Utility to clamp times between 0 and 24
-    clampHour(hour) {
-        return Math.max(0, Math.min(24, hour));
     }
 
     getTimeIntervals() {
         const intervals = [];
-        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
         
-        // Calculate desired start and end times
-        let startTime = this.hoverTime - visibleRange / 2;
-        let endTime = this.hoverTime + visibleRange / 2;
-        
-        // Adjust if we go out of bounds to maintain full visible range
-        if (startTime < 0) {
-            const adjustment = -startTime;
-            startTime = 0;
-            endTime = Math.min(24, endTime + adjustment);
-        } else if (endTime > 24) {
-            const adjustment = endTime - 24;
-            endTime = 24;
-            startTime = Math.max(0, startTime - adjustment);
-        }
-        
-        // Clamp to ensure we stay within 0-24 bounds
-        startTime = this.clampHour(startTime);
-        endTime = this.clampHour(endTime);
-        
-        // Generate hourly intervals for the visible range
-        for (let hour = startTime; hour < endTime; hour++) {
+        // Generate all 24 hourly intervals for daily view
+        for (let hour = 0; hour < 24; hour++) {
             const time = `${hour.toString().padStart(2, '0')}:00`;
             intervals.push({
                 time,
@@ -331,80 +302,6 @@ class TimeManagementApp {
     }
 
     // New zoom system based on hover position
-    setupZoomHandlers() {
-        // Handle mouse movement for automatic zoom and hover time tracking
-        this.scheduledEvents.addEventListener('mousemove', (e) => {
-            this.handleGridMouseMove(e);
-        });
-        
-        // Handle mouse enter to start auto zoom progression
-        this.scheduledEvents.addEventListener('mouseenter', () => {
-            this.startAutoZoom();
-        });
-        
-        // Handle mouse leave to reset zoom
-        this.scheduledEvents.addEventListener('mouseleave', () => {
-            this.handleGridMouseLeave();
-        });
-    }
-    
-    startAutoZoom() {
-        // Clear any existing auto zoom timer
-        if (this.autoZoomTimer) {
-            clearTimeout(this.autoZoomTimer);
-        }
-        
-        // Start progressive auto zoom
-        this.autoZoomTimer = setTimeout(() => {
-            if (this.zoomLevel < 2) {
-                this.zoomLevel = 2;
-                this.renderScheduledEvents();
-            }
-            
-            // Continue to next zoom level after additional delay
-            this.autoZoomTimer = setTimeout(() => {
-                if (this.zoomLevel < 3) {
-                    this.zoomLevel = 3;
-                    this.renderScheduledEvents();
-                }
-            }, 800); // Wait 800ms before going to level 3
-        }, 500); // Wait 500ms before going to level 2
-    }
-    
-    handleGridMouseMove(e) {
-        const rect = this.scheduledEvents.getBoundingClientRect();
-        const y = e.clientY - rect.top;
-        const gridHeight = rect.height;
-        
-        // Calculate which time we're hovering over based on current visible range
-        const visibleRange = this.ZOOM_RANGES[this.zoomLevel];
-        const startTime = this.clampHour(this.hoverTime - visibleRange / 2);
-        const timeProgress = y / gridHeight;
-        const hoverHour = startTime + (timeProgress * visibleRange);
-        
-        // Update hover time and re-render if it changed significantly
-        const newHoverTime = this.clampHour(Math.round(hoverHour));
-        if (Math.abs(newHoverTime - this.hoverTime) >= 1) {
-            this.hoverTime = newHoverTime;
-            this.renderScheduledEvents();
-        }
-    }
-    
-    handleGridMouseLeave() {
-        // Clear auto zoom timer
-        if (this.autoZoomTimer) {
-            clearTimeout(this.autoZoomTimer);
-            this.autoZoomTimer = null;
-        }
-        
-        // Reset to default zoom level and center time
-        if (this.zoomLevel !== 1 || this.hoverTime !== 12) {
-            this.zoomLevel = 1;
-            this.hoverTime = 12;
-            this.renderScheduledEvents();
-        }
-    }
-
     handleTimeSlotHover(timeSlot, interval) {
         this.hoveredTimeSlot = timeSlot;
         
@@ -415,18 +312,6 @@ class TimeManagementApp {
     handleTimeSlotLeave(timeSlot) {
         timeSlot.classList.remove('time-slot-hover');
         this.hoveredTimeSlot = null;
-    }
-
-    startZoomTransition(timeSlot, interval) {
-        // This method is no longer needed with the new zoom system
-        // Keeping for compatibility but it does nothing
-    }
-
-    resetZoom() {
-        // Reset to default state
-        this.zoomLevel = 1;
-        this.hoverTime = 12;
-        this.renderScheduledEvents();
     }
 
     dropTaskInTimeSlot(timeSlot, interval) {
@@ -605,6 +490,157 @@ class TimeManagementApp {
         });
     }
 
+    setupViewToggle() {
+        let clickCount = 0;
+        let clickTimer = null;
+        
+        // Single click cycles through views, double click shows dropdown
+        this.viewToggleBtn.addEventListener('click', () => {
+            clickCount++;
+            
+            if (clickCount === 1) {
+                clickTimer = setTimeout(() => {
+                    // Single click - cycle through views
+                    this.cycleView();
+                    clickCount = 0;
+                }, 300);
+            } else if (clickCount === 2) {
+                // Double click - show dropdown
+                clearTimeout(clickTimer);
+                this.showViewDropdown();
+                clickCount = 0;
+            }
+        });
+        
+        // Dropdown selection
+        this.viewDropdown.addEventListener('change', (e) => {
+            this.changeView(e.target.value);
+            this.hideViewDropdown();
+        });
+        
+        // Hide dropdown when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!this.viewToggleBtn.contains(e.target) && !this.viewDropdown.contains(e.target)) {
+                this.hideViewDropdown();
+            }
+        });
+    }
+
+    cycleView() {
+        const views = ['daily', 'weekly', 'monthly', 'thirty-day'];
+        const currentIndex = views.indexOf(this.currentView);
+        const nextIndex = (currentIndex + 1) % views.length;
+        this.changeView(views[nextIndex]);
+    }
+
+    changeView(newView) {
+        this.currentView = newView;
+        this.updateViewToggleButton();
+        this.renderCurrentView();
+    }
+
+    updateViewToggleButton() {
+        const viewNames = {
+            'daily': 'Daily View',
+            'weekly': 'Weekly View', 
+            'monthly': 'Monthly View',
+            'thirty-day': '30-Day View'
+        };
+        this.viewToggleBtn.textContent = viewNames[this.currentView];
+        this.viewDropdown.value = this.currentView;
+    }
+
+    showViewDropdown() {
+        this.viewDropdown.style.display = 'inline-block';
+        this.viewToggleBtn.style.display = 'none';
+    }
+
+    hideViewDropdown() {
+        this.viewDropdown.style.display = 'none';
+        this.viewToggleBtn.style.display = 'inline-block';
+    }
+
+    renderCurrentView() {
+        // Clear the scheduled events area
+        this.scheduledEvents.innerHTML = '';
+        
+        switch(this.currentView) {
+            case 'daily':
+                this.renderDailyView();
+                break;
+            case 'weekly':
+                this.renderWeeklyView();
+                break;
+            case 'monthly':
+                this.renderMonthlyView();
+                break;
+            case 'thirty-day':
+                this.renderThirtyDayView();
+                break;
+        }
+    }
+
+    renderDailyView() {
+        // This is the existing daily view logic
+        this.renderScheduledEvents();
+    }
+
+    renderWeeklyView() {
+        // Create a weekly calendar grid
+        const weekStart = this.getWeekStart(this.currentDate);
+        const weekDays = [];
+        
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(weekStart);
+            day.setDate(weekStart.getDate() + i);
+            weekDays.push(day);
+        }
+        
+        // Create week header
+        const weekHeader = document.createElement('div');
+        weekHeader.className = 'week-header';
+        weekDays.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = day.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            weekHeader.appendChild(dayHeader);
+        });
+        this.scheduledEvents.appendChild(weekHeader);
+        
+        // Create week grid
+        const weekGrid = document.createElement('div');
+        weekGrid.className = 'week-grid';
+        
+        weekDays.forEach(day => {
+            const dayColumn = document.createElement('div');
+            dayColumn.className = 'day-column';
+            dayColumn.dataset.date = this.formatDate(day);
+            
+            // Add tasks for this day
+            const dayTasks = this.tasks.filter(task => 
+                task.date === this.formatDate(day) && 
+                (task.type === 'daily' || task.type === 'scheduled')
+            );
+            
+            dayTasks.forEach(task => {
+                const taskElement = this.createTaskElement(task);
+                taskElement.classList.add('week-task');
+                dayColumn.appendChild(taskElement);
+            });
+            
+            // Make it a drop zone
+            this.setupDayColumnDropZone(dayColumn, day);
+            
+            weekGrid.appendChild(dayColumn);
+        });
+        
+        this.scheduledEvents.appendChild(weekGrid);
+    }
+
     moveTaskToDate(task, zone) {
         const currentDateStr = this.formatDate(this.currentDate);
         
@@ -682,6 +718,245 @@ class TimeManagementApp {
 
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    renderMonthlyView() {
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        
+        // Create month header
+        const monthHeader = document.createElement('div');
+        monthHeader.className = 'month-header';
+        monthHeader.textContent = this.currentDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long' 
+        });
+        this.scheduledEvents.appendChild(monthHeader);
+        
+        // Create days of week header
+        const daysHeader = document.createElement('div');
+        daysHeader.className = 'days-header';
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayNames.forEach(dayName => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-name';
+            dayHeader.textContent = dayName;
+            daysHeader.appendChild(dayHeader);
+        });
+        this.scheduledEvents.appendChild(daysHeader);
+        
+        // Create calendar grid
+        const calendarGrid = document.createElement('div');
+        calendarGrid.className = 'calendar-grid';
+        
+        // Get first day of month and how many days in month
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay();
+        
+        // Add empty cells for days before month starts
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day empty';
+            calendarGrid.appendChild(emptyDay);
+        }
+        
+        // Add days of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = day;
+            dayElement.appendChild(dayNumber);
+            
+            const dayDate = new Date(year, month, day);
+            dayElement.dataset.date = this.formatDate(dayDate);
+            
+            // Add task indicators
+            const dayTasks = this.tasks.filter(task => 
+                task.date === this.formatDate(dayDate) && 
+                (task.type === 'daily' || task.type === 'scheduled')
+            );
+            
+            if (dayTasks.length > 0) {
+                const taskIndicator = document.createElement('div');
+                taskIndicator.className = 'task-indicator';
+                taskIndicator.textContent = `${dayTasks.length} task${dayTasks.length > 1 ? 's' : ''}`;
+                dayElement.appendChild(taskIndicator);
+            }
+            
+            // Highlight current day
+            if (this.formatDate(dayDate) === this.formatDate(this.currentDate)) {
+                dayElement.classList.add('current-day');
+            }
+            
+            // Make it clickable to switch to day view
+            dayElement.addEventListener('click', () => {
+                this.temporarySwitchToDay(dayDate);
+            });
+            
+            // Make it a drop zone
+            this.setupDayDropZone(dayElement, dayDate);
+            
+            calendarGrid.appendChild(dayElement);
+        }
+        
+        this.scheduledEvents.appendChild(calendarGrid);
+    }
+
+    renderThirtyDayView() {
+        const startDate = new Date(this.currentDate);
+        startDate.setDate(startDate.getDate() - 1); // Start from yesterday
+        
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'thirty-day-header';
+        header.textContent = '30-Day View (from yesterday)';
+        this.scheduledEvents.appendChild(header);
+        
+        // Create scrollable container
+        const container = document.createElement('div');
+        container.className = 'thirty-day-container';
+        
+        for (let i = 0; i < 30; i++) {
+            const day = new Date(startDate);
+            day.setDate(startDate.getDate() + i);
+            
+            const dayElement = document.createElement('div');
+            dayElement.className = 'thirty-day-item';
+            
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'thirty-day-header-item';
+            dayHeader.textContent = day.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            dayElement.appendChild(dayHeader);
+            
+            const dayTasks = this.tasks.filter(task => 
+                task.date === this.formatDate(day) && 
+                (task.type === 'daily' || task.type === 'scheduled')
+            );
+            
+            const tasksContainer = document.createElement('div');
+            tasksContainer.className = 'thirty-day-tasks';
+            
+            dayTasks.forEach(task => {
+                const taskElement = this.createTaskElement(task);
+                taskElement.classList.add('thirty-day-task');
+                tasksContainer.appendChild(taskElement);
+            });
+            
+            dayElement.appendChild(tasksContainer);
+            dayElement.dataset.date = this.formatDate(day);
+            
+            // Highlight current day
+            if (this.formatDate(day) === this.formatDate(this.currentDate)) {
+                dayElement.classList.add('current-day');
+            }
+            
+            // Make it clickable to switch to day view
+            dayElement.addEventListener('click', () => {
+                this.temporarySwitchToDay(day);
+            });
+            
+            // Make it a drop zone
+            this.setupDayDropZone(dayElement, day);
+            
+            container.appendChild(dayElement);
+        }
+        
+        this.scheduledEvents.appendChild(container);
+    }
+
+    getWeekStart(date) {
+        const result = new Date(date);
+        result.setDate(date.getDate() - date.getDay());
+        return result;
+    }
+
+    setupDayColumnDropZone(dayColumn, date) {
+        dayColumn.addEventListener('mouseover', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                dayColumn.classList.add('drag-over');
+            }
+        });
+
+        dayColumn.addEventListener('mouseleave', () => {
+            dayColumn.classList.remove('drag-over');
+        });
+
+        dayColumn.addEventListener('click', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                dayColumn.classList.remove('drag-over');
+                
+                this.moveTaskToSpecificDate(this.selectedTask, date);
+                this.deselectTask();
+            }
+        });
+    }
+
+    setupDayDropZone(dayElement, date) {
+        dayElement.addEventListener('mouseover', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                dayElement.classList.add('drag-over');
+            }
+        });
+
+        dayElement.addEventListener('mouseleave', () => {
+            dayElement.classList.remove('drag-over');
+        });
+
+        dayElement.addEventListener('click', (e) => {
+            if (this.selectedTask && this.isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                dayElement.classList.remove('drag-over');
+                
+                this.moveTaskToSpecificDate(this.selectedTask, date);
+                this.deselectTask();
+            }
+        });
+    }
+
+    moveTaskToSpecificDate(task, date) {
+        const dateStr = this.formatDate(date);
+        task.date = dateStr;
+        
+        if (!task.time) {
+            task.type = 'daily';
+        } else {
+            task.type = 'scheduled';
+        }
+        
+        this.saveTasks();
+        this.renderTasks();
+    }
+
+    temporarySwitchToDay(date) {
+        if (!this.selectedTask || !this.isDragging) {
+            // Only switch if not dragging
+            this.previousView = this.currentView;
+            this.currentDate = new Date(date);
+            this.currentView = 'daily';
+            this.updateViewToggleButton();
+            this.updateDateDisplay();
+            this.renderCurrentView();
+        }
+    }
+
+    returnToPreviousView() {
+        if (this.previousView && this.previousView !== this.currentView) {
+            this.currentView = this.previousView;
+            this.updateViewToggleButton();
+            this.renderCurrentView();
+        }
     }
 
     formatDate(date) {
