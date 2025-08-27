@@ -13,6 +13,10 @@ class TimeManagementApp {
         this.zoomLevel = 1; // 1 = hourly, 2 = 30min, 3 = 20min, 4 = 10min, 5 = 5min
         this.hoveredTimeSlot = null;
         
+        // Zoom center properties
+        this.zoomCenterTime = null; // Time around which to center zoom (HH:MM format)
+        this.zoomCenterHour = 12; // Default center at noon
+        
         this.initializeElements();
         this.bindEvents();
         this.updateDateDisplay();
@@ -65,6 +69,12 @@ class TimeManagementApp {
             if (this.selectedTask && !e.target.closest('.task-item')) {
                 this.deselectTask();
             }
+        });
+        
+        // Mouse wheel zoom functionality
+        this.scheduledEvents.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.handleMouseWheelZoom(e);
         });
     }
 
@@ -215,69 +225,77 @@ class TimeManagementApp {
     getTimeIntervals() {
         const intervals = [];
         
+        // Determine time range based on zoom level
+        let timeRangeHours, intervalMinutes;
+        
         switch (this.zoomLevel) {
-            case 1: // Hourly
-                for (let hour = 0; hour < 24; hour++) {
-                    const time = `${hour.toString().padStart(2, '0')}:00`;
-                    intervals.push({
-                        time,
-                        display: this.formatTimeDisplay(time),
-                        duration: 60
-                    });
-                }
+            case 1: // Show all 24 hours, hourly intervals
+                timeRangeHours = 24;
+                intervalMinutes = 60;
                 break;
-            case 2: // 30 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 30) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 30
-                        });
-                    }
-                }
+            case 2: // Show 12 hours, 30min intervals  
+                timeRangeHours = 12;
+                intervalMinutes = 30;
                 break;
-            case 3: // 20 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 20) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 20
-                        });
-                    }
-                }
+            case 3: // Show 6 hours, 20min intervals
+                timeRangeHours = 6;
+                intervalMinutes = 20;
                 break;
-            case 4: // 10 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 10) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 10
-                        });
-                    }
-                }
+            case 4: // Show 3 hours, 10min intervals
+                timeRangeHours = 3;
+                intervalMinutes = 10;
                 break;
-            case 5: // 5 minutes
-                for (let hour = 0; hour < 24; hour++) {
-                    for (let min = 0; min < 60; min += 5) {
-                        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                        intervals.push({
-                            time,
-                            display: this.formatTimeDisplay(time),
-                            duration: 5
-                        });
-                    }
-                }
+            case 5: // Show 1.5 hours, 5min intervals
+                timeRangeHours = 1.5;
+                intervalMinutes = 5;
                 break;
             default:
-                // Default to hourly
                 this.zoomLevel = 1;
                 return this.getTimeIntervals();
+        }
+        
+        // Calculate start and end times centered around zoom center
+        let startHour, endHour;
+        
+        if (this.zoomLevel === 1 || !this.zoomCenterTime) {
+            // Show full day for zoom level 1 or when no center is set
+            startHour = 0;
+            endHour = 24;
+        } else {
+            // Center the time range around the zoom center
+            const centerHour = this.zoomCenterHour;
+            const halfRange = timeRangeHours / 2;
+            
+            startHour = Math.max(0, centerHour - halfRange);
+            endHour = Math.min(24, centerHour + halfRange);
+            
+            // Adjust if we hit boundaries to maintain the desired range
+            if (endHour - startHour < timeRangeHours) {
+                if (startHour === 0) {
+                    endHour = Math.min(24, startHour + timeRangeHours);
+                } else if (endHour === 24) {
+                    startHour = Math.max(0, endHour - timeRangeHours);
+                }
+            }
+        }
+        
+        // Generate intervals within the calculated range
+        for (let hour = Math.floor(startHour); hour < Math.ceil(endHour); hour++) {
+            for (let min = 0; min < 60; min += intervalMinutes) {
+                const totalHour = hour + min / 60;
+                
+                // Skip if before start time or after end time
+                if (totalHour < startHour || totalHour >= endHour) {
+                    continue;
+                }
+                
+                const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                intervals.push({
+                    time,
+                    display: this.formatTimeDisplay(time),
+                    duration: intervalMinutes
+                });
+            }
         }
         
         return intervals;
@@ -384,8 +402,64 @@ class TimeManagementApp {
     resetZoom() {
         if (this.zoomLevel > 1) {
             this.zoomLevel = 1;
+            this.zoomCenterTime = null;
             this.renderScheduledEvents();
         }
+    }
+
+    handleMouseWheelZoom(e) {
+        // Get cursor position relative to the scheduled events container
+        const rect = this.scheduledEvents.getBoundingClientRect();
+        const relativeY = e.clientY - rect.top;
+        
+        // Update zoom center BEFORE changing zoom level
+        this.updateZoomCenter(relativeY);
+        
+        // Zoom in or out based on wheel direction
+        if (e.deltaY < 0) {
+            // Zoom in (wheel up)
+            if (this.zoomLevel < 5) {
+                this.zoomLevel++;
+                this.renderScheduledEvents();
+            }
+        } else {
+            // Zoom out (wheel down)
+            if (this.zoomLevel > 1) {
+                this.zoomLevel--;
+                if (this.zoomLevel === 1) {
+                    this.zoomCenterTime = null;
+                }
+                this.renderScheduledEvents();
+            }
+        }
+    }
+
+    updateZoomCenter(relativeY) {
+        // Get the current intervals (before zoom change)
+        const currentIntervals = this.getCurrentTimeRange();
+        
+        // Calculate what time the cursor is over based on current layout
+        if (currentIntervals.length > 0) {
+            const containerHeight = this.scheduledEvents.offsetHeight;
+            const timeSlotHeight = containerHeight / currentIntervals.length;
+            
+            const slotIndex = Math.floor(relativeY / timeSlotHeight);
+            const boundedIndex = Math.max(0, Math.min(slotIndex, currentIntervals.length - 1));
+            
+            if (currentIntervals[boundedIndex]) {
+                this.zoomCenterTime = currentIntervals[boundedIndex].time;
+                // Extract hour for zoom center calculations
+                const [hours, minutes] = this.zoomCenterTime.split(':');
+                this.zoomCenterHour = parseInt(hours) + parseInt(minutes) / 60;
+                
+                console.log(`Zoom center set to: ${this.zoomCenterTime} (hour: ${this.zoomCenterHour})`);
+            }
+        }
+    }
+
+    getCurrentTimeRange() {
+        // This will be used to get the current time intervals for cursor position calculation
+        return this.getTimeIntervals();
     }
 
     dropTaskInTimeSlot(timeSlot, interval) {
