@@ -12,6 +12,7 @@ class TimeManagementApp {
         this.timeSlots = [];
         this.zoomLevel = 1; // 1 = hourly, 2 = 30min, 3 = 20min, 4 = 10min, 5 = 5min
         this.hoveredTimeSlot = null;
+        this.focusedTimeRange = null; // For focused zoom view
         
         this.initializeElements();
         this.bindEvents();
@@ -189,15 +190,11 @@ class TimeManagementApp {
             
             // Add hover events for zoom functionality
             timeSlot.addEventListener('mouseenter', (e) => {
-                if (this.selectedTask && this.isDragging) {
-                    this.handleTimeSlotHover(timeSlot, interval);
-                }
+                this.handleTimeSlotHover(timeSlot, interval);
             });
             
             timeSlot.addEventListener('mouseleave', () => {
-                if (this.selectedTask && this.isDragging) {
-                    this.handleTimeSlotLeave(timeSlot);
-                }
+                this.handleTimeSlotLeave(timeSlot);
             });
             
             // Click to place task
@@ -215,9 +212,26 @@ class TimeManagementApp {
     getTimeIntervals() {
         const intervals = [];
         
+        // Determine time range based on zoom level
+        let startHour = 0;
+        let endHour = 24;
+        
+        // When zoomed in and focused on a specific time range, show limited hours
+        if (this.zoomLevel > 1 && this.focusedTimeRange) {
+            const focusHour = parseInt(this.focusedTimeRange.split(':')[0]);
+            const rangeSize = Math.max(4, 12 - this.zoomLevel * 2); // Shrink range as zoom increases
+            startHour = Math.max(0, focusHour - Math.floor(rangeSize / 2));
+            endHour = Math.min(24, startHour + rangeSize);
+            
+            // Adjust if we hit the boundaries
+            if (endHour === 24) {
+                startHour = Math.max(0, 24 - rangeSize);
+            }
+        }
+        
         switch (this.zoomLevel) {
             case 1: // Hourly
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startHour; hour < endHour; hour++) {
                     const time = `${hour.toString().padStart(2, '0')}:00`;
                     intervals.push({
                         time,
@@ -227,7 +241,7 @@ class TimeManagementApp {
                 }
                 break;
             case 2: // 30 minutes
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startHour; hour < endHour; hour++) {
                     for (let min = 0; min < 60; min += 30) {
                         const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
                         intervals.push({
@@ -239,7 +253,7 @@ class TimeManagementApp {
                 }
                 break;
             case 3: // 20 minutes
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startHour; hour < endHour; hour++) {
                     for (let min = 0; min < 60; min += 20) {
                         const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
                         intervals.push({
@@ -251,7 +265,7 @@ class TimeManagementApp {
                 }
                 break;
             case 4: // 10 minutes
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startHour; hour < endHour; hour++) {
                     for (let min = 0; min < 60; min += 10) {
                         const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
                         intervals.push({
@@ -263,7 +277,7 @@ class TimeManagementApp {
                 }
                 break;
             case 5: // 5 minutes
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startHour; hour < endHour; hour++) {
                     for (let min = 0; min < 60; min += 5) {
                         const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
                         intervals.push({
@@ -354,8 +368,8 @@ class TimeManagementApp {
         // Add hover class
         timeSlot.classList.add('time-slot-hover');
         
-        // Implement zoom functionality - increase zoom level gradually
-        if (this.zoomLevel < 5) {
+        // Only implement zoom functionality if an event is selected
+        if (this.selectedTask && this.isDragging && this.zoomLevel < 5) {
             this.startZoomTransition(timeSlot, interval);
         }
     }
@@ -372,6 +386,9 @@ class TimeManagementApp {
     }
 
     startZoomTransition(timeSlot, interval) {
+        // Set focused time range based on the hovered slot
+        this.focusedTimeRange = interval.time;
+        
         // Gradually increase zoom level
         setTimeout(() => {
             if (this.hoveredTimeSlot === timeSlot && this.zoomLevel < 5) {
@@ -384,6 +401,7 @@ class TimeManagementApp {
     resetZoom() {
         if (this.zoomLevel > 1) {
             this.zoomLevel = 1;
+            this.focusedTimeRange = null;
             this.renderScheduledEvents();
         }
     }
@@ -562,6 +580,8 @@ class TimeManagementApp {
 
         this.scheduledEvents.addEventListener('mouseleave', () => {
             this.scheduledEvents.classList.remove('drag-over');
+            // Reset zoom when cursor leaves the scheduled events area
+            this.resetZoom();
         });
     }
 
