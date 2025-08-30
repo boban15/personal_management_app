@@ -22,9 +22,6 @@ class TimeManagementApp {
         this.lastAddedTaskId = null;
         this.justAddedTask = false;
         
-        // Task popup
-        this.taskPopup = null;
-        
         this.initializeElements();
         this.bindEvents();
         this.updateViewClasses(); // Set initial view class
@@ -209,9 +206,6 @@ class TimeManagementApp {
     }
 
     renderCurrentView() {
-        // Hide any existing popup before re-rendering to prevent stuck popups
-        this.hideTaskPopup();
-        
         this.renderTodoList(); // Always render todo list
         this.updateViewClasses();
         
@@ -832,99 +826,12 @@ class TimeManagementApp {
             }
         });
 
-        // Add hover popup functionality for all view modes
-        taskElement.addEventListener('mouseenter', (e) => {
-            this.showTaskPopup(task, taskElement, e);
-        });
 
-        taskElement.addEventListener('mouseleave', () => {
-            this.hideTaskPopup();
-        });
 
         return taskElement;
     }
 
-    showTaskPopup(task, taskElement, event) {
-        // Remove existing popup if any
-        this.hideTaskPopup();
-        
-        // Create popup element
-        this.taskPopup = document.createElement('div');
-        this.taskPopup.className = 'task-popup';
-        
-        // Popup content
-        const title = document.createElement('div');
-        title.className = 'task-popup-title';
-        title.textContent = task.text;
-        this.taskPopup.appendChild(title);
-        
-        const details = document.createElement('div');
-        details.className = 'task-popup-details';
-        
-        if (task.time) {
-            const timeInfo = document.createElement('div');
-            timeInfo.className = 'task-popup-time';
-            timeInfo.textContent = `⏰ ${task.time}`;
-            details.appendChild(timeInfo);
-        }
-        
-        if (task.date) {
-            const dateInfo = document.createElement('div');
-            dateInfo.textContent = `📅 ${task.date}`;
-            details.appendChild(dateInfo);
-        }
-        
-        const typeInfo = document.createElement('div');
-        typeInfo.className = 'task-popup-type';
-        typeInfo.textContent = task.type.charAt(0).toUpperCase() + task.type.slice(1);
-        details.appendChild(typeInfo);
-        
-        this.taskPopup.appendChild(details);
-        
-        // Add to document
-        document.body.appendChild(this.taskPopup);
-        
-        // Position popup adjacent to the task (to the right)
-        this.positionTaskPopup(taskElement);
-    }
-    
-    hideTaskPopup() {
-        if (this.taskPopup) {
-            this.taskPopup.remove();
-            this.taskPopup = null;
-        }
-    }
-    
-    positionTaskPopup(taskElement) {
-        if (!this.taskPopup) return;
-        
-        const rect = taskElement.getBoundingClientRect();
-        const popupRect = this.taskPopup.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        // Default position: to the right of the task
-        let left = rect.right + 10;
-        let top = rect.top;
-        
-        // Adjust if popup would go off screen to the right
-        if (left + popupRect.width > viewportWidth) {
-            left = rect.left - popupRect.width - 10; // Position to the left instead
-        }
-        
-        // Adjust if popup would go off screen at the bottom
-        if (top + popupRect.height > viewportHeight) {
-            top = viewportHeight - popupRect.height - 10;
-        }
-        
-        // Ensure popup is not above the top of the viewport
-        if (top < 10) {
-            top = 10;
-        }
-        
-        this.taskPopup.style.left = `${left}px`;
-        this.taskPopup.style.top = `${top}px`;
-    }
+
 
     isValidTime(time) {
         const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
@@ -997,9 +904,6 @@ class TimeManagementApp {
     }
 
     selectTask(task, taskElement) {
-        // Hide popup since we're changing task state
-        this.hideTaskPopup();
-        
         // Deselect previous task
         this.deselectTask();
         
@@ -1014,9 +918,6 @@ class TimeManagementApp {
     }
     
     deselectTask() {
-        // Hide popup since we're changing task state
-        this.hideTaskPopup();
-        
         if (this.selectedTaskElement) {
             this.selectedTaskElement.classList.remove('selected');
         }
