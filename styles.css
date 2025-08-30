@@ -369,6 +369,26 @@ body {
     padding: 0.1rem;
 }
 
+/* Fix for time input in grid views - position below task to prevent column expansion */
+.grid-task .time-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 15;
+    margin-top: 2px;
+}
+
+.grid-task .time-container .time-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* Drop zones */
 .drop-zone {
     border: 2px dashed transparent;
