@@ -289,7 +289,7 @@ body {
     display: flex;
     align-items: center;
     flex: 1;
-    min-height: 35px;
+    min-height: 17px;
     height: auto;
     border-bottom: 1px solid #f0f0f0;
     transition: all 0.2s ease;
@@ -312,8 +312,8 @@ body {
 
 .time-label {
     width: 80px;
-    padding: 0.5rem;
-    font-size: 0.8rem;
+    padding: 0.25rem;
+    font-size: 0.75rem;
     color: #666;
     border-right: 1px solid #e0e0e0;
     background-color: #fafafa;
@@ -324,7 +324,7 @@ body {
 
 .task-container {
     flex: 1;
-    padding: 0.25rem 0.5rem;
+    padding: 0.125rem 0.25rem;
     min-height: 40px;
     display: flex;
     flex-wrap: wrap;
