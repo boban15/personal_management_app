@@ -762,11 +762,8 @@ class TimeManagementApp {
                     task.time = time;
                     if (task.type === 'daily') {
                         task.type = 'scheduled';
-                    } else if (task.type === 'todo') {
-                        // Todo with time becomes scheduled and gets current date
-                        task.type = 'scheduled';
-                        task.date = this.formatDate(this.currentDate);
                     }
+                    // Note: todo tasks with time remain as 'todo' type until explicitly moved to a day
                 } else {
                     task.time = null;
                     if (task.type === 'scheduled') {
