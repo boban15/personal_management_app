@@ -209,6 +209,9 @@ class TimeManagementApp {
     }
 
     renderCurrentView() {
+        // Hide any existing popup before re-rendering to prevent stuck popups
+        this.hideTaskPopup();
+        
         this.renderTodoList(); // Always render todo list
         this.updateViewClasses();
         
@@ -995,6 +998,9 @@ class TimeManagementApp {
     }
 
     selectTask(task, taskElement) {
+        // Hide popup since we're changing task state
+        this.hideTaskPopup();
+        
         // Deselect previous task
         this.deselectTask();
         
@@ -1009,6 +1015,9 @@ class TimeManagementApp {
     }
     
     deselectTask() {
+        // Hide popup since we're changing task state
+        this.hideTaskPopup();
+        
         if (this.selectedTaskElement) {
             this.selectedTaskElement.classList.remove('selected');
         }
